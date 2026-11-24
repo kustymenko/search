@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тренажер пошуку і фільтрів</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Dela+Gothic+One&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Ідея: стіна з оголошеннями біля під'їзду. Папірці з відривними номерками, кулькова ручка,
+   жовтий маркер у коді, гумовий штамп замість зелених/червоних плашок. */
+:root{
+  --wall:#E4E7E6; --wall-dot:#D6DAD8;
+  --panel:#F5F6F4; --paper:#FFFFFF; --paper-free:#EAF5EC; --paper-ink:#1B1D21;
+  --ink:#16181C; --muted:#5A6068; --line:#C9CECC;
+  --pen:#2442B5; --pen-soft:#DCE3FA; --on-pen:#FFFFFF;
+  --marker:#FFE45C; --marker-soft:rgba(255,228,92,.55);
+  --ok:#1C7443; --ok-soft:#DDF0E3; --bad:#C3321E; --bad-soft:#FBE3DE;
+  --tape:rgba(236,214,128,.62);
+  --code-bg:#FBFBF9; --code-ink:#1B1D21; --code-num:#9AA0A6;
+  --t-kw:#2442B5; --t-str:#1C7443; --t-com:#8A9096; --t-num:#A4520C; --t-fn:#7A2E8E;
+  --f-display:"Dela Gothic One","Arial Black",system-ui,sans-serif;
+  --f-hand:"Caveat","Segoe Print","Comic Sans MS",cursive;
+  --f-body:"Golos Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --wall:#15181B; --wall-dot:#1C2024;
+    --panel:#1D2125; --paper:#E9E7E1; --paper-free:#D9E8DC; --paper-ink:#1B1D21;
+    --ink:#E9EBED; --muted:#A0A7AE; --line:#343A40;
+    --pen:#93A8FF; --pen-soft:#25304F; --on-pen:#10172A;
+    --marker:#E8C93A; --marker-soft:rgba(232,201,58,.32);
+    --ok:#5BCB8A; --ok-soft:#173726; --bad:#FF8A78; --bad-soft:#3B1E1A;
+    --tape:rgba(236,214,128,.45);
+    --code-bg:#1A1D21; --code-ink:#E3E6E9; --code-num:#6B727A;
+    --t-kw:#9DB2FF; --t-str:#7FD6A6; --t-com:#7E868E; --t-num:#F2A766; --t-fn:#E0A2F0;
+    color-scheme:dark;
+  }
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background-color:var(--wall);
+  background-image:radial-gradient(var(--wall-dot) 1px, transparent 1.4px);
+  background-size:7px 7px;
+  color:var(--ink); font:18px/1.55 var(--f-body);
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--pen)}
+button{font:inherit; color:inherit}
+:focus-visible{outline:3px solid var(--pen); outline-offset:2px}
+code,.mono{font-family:var(--f-mono); font-size:.86em}
+p code,li code,td code{background:var(--pen-soft); padding:.06em .35em; border-radius:4px}
+.wrap{max-width:1240px; margin:0 auto; padding:0 max(16px, env(safe-area-inset-left)) 80px max(16px, env(safe-area-inset-right))}
+
+/* ---------- шапка ---------- */
+.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px 24px; padding:28px 0 10px}
+.brand{display:flex; flex-direction:column}
+.brand .kicker{font:700 24px/1 var(--f-hand); color:var(--pen); transform:rotate(-2deg); transform-origin:left; margin-bottom:6px}
+.brand h1{font:400 clamp(28px,4.4vw,46px)/1 var(--f-display); margin:0; letter-spacing:.01em; text-transform:uppercase}
+.brand h1 span{color:#16181C; background:linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%)}
+.tabs{display:flex; gap:4px; flex-wrap:wrap; margin-top:18px; border-bottom:2px solid var(--ink); padding-left:6px}
+.tab{appearance:none; border:2px solid var(--ink); border-bottom:0; background:var(--panel); padding:9px 16px 8px; border-radius:10px 10px 0 0; cursor:pointer; font-weight:600; font-size:16px; position:relative; top:2px; display:flex; gap:8px; align-items:center}
+.tab .n{font:400 13px/1 var(--f-display); color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--paper); color:var(--paper-ink); padding-bottom:10px}
+.tab[aria-selected="true"] .n{color:var(--pen)}
+@media (prefers-color-scheme: dark){ .tab[aria-selected="true"] .n{color:#2442B5} }
+@media (prefers-color-scheme: dark){ .brand h1 span{background:linear-gradient(transparent 4%, var(--marker) 4%, var(--marker) 96%, transparent 96%); padding:0 .08em} }
+.tab .badge{font-size:12px; font-weight:700; padding:1px 7px; border-radius:9px; background:var(--line); color:var(--ink)}
+.view{display:none; padding-top:26px}
+.muted{color:var(--muted)}
+.task > *, .card > *, .hint > *{--ink:#1B1D21; --pen:#2442B5; --on-pen:#FFFFFF; --muted:#5A6068}
+.view.on{display:block}
+.lede{font-size:19px; max-width:780px; margin:0 0 20px}
+.hand{font-family:var(--f-hand); font-weight:700; color:var(--pen)}
+
+/* ---------- папірці ---------- */
+.board{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:22px 16px; padding:8px 4px}
+.note{position:relative; background:var(--paper); color:var(--paper-ink); padding:16px 14px 0; box-shadow:0 1px 0 rgba(0,0,0,.08), 0 8px 14px -10px rgba(0,0,0,.35); transform:rotate(var(--r,0deg)); min-height:170px; display:flex; flex-direction:column}
+.note.free{background:var(--paper-free)}
+.note::before{content:""; position:absolute; top:-9px; left:50%; width:64px; height:20px; margin-left:-32px; background:var(--tape); transform:rotate(-3deg)}
+.note .kind{font:400 12px/1 var(--f-display); letter-spacing:.08em; color:#5A6068}
+.note.free .kind{color:#C3321E}
+.note h3{font:700 25px/1.02 var(--f-hand); margin:6px 0 4px; color:#2442B5}
+.note .desc{font-size:14px; line-height:1.35; color:#444A52; margin:0 0 10px}
+.note .meta{font-size:13px; color:#5A6068; margin-top:auto; padding-bottom:8px}
+.tear{display:flex; border-top:2px dashed #B9BEC2; margin:0 -14px}
+.tear span{flex:1; text-align:center; font:600 13px/1.2 var(--f-mono); padding:7px 2px; border-left:1px dashed #C9CDD0; color:#1B1D21}
+.tear span:first-child{border-left:0}
+.tear .p{font-weight:700}
+.note.free .tear .p{color:#C3321E; font-family:var(--f-body)}
+
+/* ---------- лабораторія ---------- */
+.lab{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:28px; align-items:start}
+@media (max-width:1020px){ .lab{grid-template-columns:minmax(0,1fr)} }
+.sheet{background:var(--panel); border:2px solid var(--ink); border-radius:4px; padding:18px; position:relative}
+.sheet h2{font:400 20px/1.1 var(--f-display); text-transform:uppercase; margin:0 0 12px; letter-spacing:.02em}
+.urlbar{display:flex; align-items:stretch; border:2px solid var(--ink); border-radius:999px; background:var(--paper); overflow:hidden}
+.urlbar .host{font:500 14px var(--f-mono); color:#5A6068; padding:10px 0 10px 16px; white-space:nowrap; display:flex; align-items:center}
+.urlbar input{flex:1; min-width:0; border:0; background:transparent; font:600 15px var(--f-mono); padding:10px 8px; color:#1B1D21; outline:none}
+.urlbar button{border:0; border-left:2px solid var(--ink); background:var(--marker); color:#1B1D21; padding:0 16px; cursor:pointer; font-weight:700}
+.urlhint{font-size:14px; color:var(--muted); margin:6px 4px 14px}
+.filters{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin-bottom:12px}
+.fld{display:flex; flex-direction:column; gap:3px; min-width:0}
+.fld label{font-size:13px; color:var(--muted); font-family:var(--f-mono)}
+.fld input,.fld select{font:15px var(--f-body); padding:8px 10px; border:2px solid var(--line); border-radius:6px; background:var(--paper); color:#1B1D21; min-width:0; width:100%}
+.fld input:focus,.fld select:focus{border-color:var(--pen); outline:none}
+.btn{appearance:none; border:2px solid var(--ink); background:var(--paper); color:var(--paper-ink); padding:9px 18px; border-radius:6px; font-weight:700; cursor:pointer; box-shadow:3px 3px 0 var(--ink); transition:transform .08s, box-shadow .08s}
+.btn:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink)}
+.btn.primary{background:var(--pen); color:var(--on-pen); border-color:var(--ink)}
+.btn.ghost{box-shadow:none; background:transparent; color:var(--ink)}
+.btn:disabled{opacity:.45; cursor:not-allowed; transform:none; box-shadow:3px 3px 0 var(--ink)}
+.row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.found{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:8px; margin:18px 0 6px}
+.found b{font:400 22px var(--f-display)}
+.pager{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-top:18px}
+.pager .href{font:13px var(--f-mono); color:var(--muted); word-break:break-all; flex-basis:100%}
+.empty{font:700 28px var(--f-hand); color:var(--muted); padding:20px 0}
+
+/* конвеєр */
+.pipe{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0}
+.stage{display:grid; grid-template-columns:30px minmax(0,1fr) auto; gap:4px 10px; padding:10px 8px; border-top:1px dashed var(--line); cursor:pointer; border-radius:6px}
+.stage:first-child{border-top:0}
+.stage:hover,.stage.hot{background:var(--marker-soft)}
+.stage .no{font:400 15px/1.5 var(--f-display); color:var(--muted)}
+.stage .what{font-weight:600}
+.stage .note2{grid-column:2/4; font-size:14.5px; color:var(--muted)}
+.stage .note2 b{color:var(--ink)}
+.stage .cnt{font:600 15px var(--f-mono); white-space:nowrap}
+.stage .cnt .drop{color:var(--bad)}
+.stage.skip .what{color:var(--muted)}
+.chips{grid-column:2/4; display:flex; flex-wrap:wrap; gap:4px; margin-top:4px}
+.chip{font:600 11px/1 var(--f-mono); padding:4px 5px; border-radius:3px; background:var(--paper); color:#1B1D21; border:1px solid var(--line)}
+.chip.free{background:var(--paper-free)}
+.chip.gone{opacity:.35; text-decoration:line-through}
+
+/* код */
+.code{background:var(--code-bg); color:var(--code-ink); border:2px solid var(--ink); border-radius:4px; font:14.5px/1.6 var(--f-mono); padding:10px 0; overflow-x:auto}
+.ln{display:grid; grid-template-columns:42px minmax(0,1fr); white-space:pre-wrap; word-break:break-word; padding-right:14px}
+.ln .num{color:var(--code-num); text-align:right; padding-right:12px; user-select:none}
+.ln .src{padding-left:14px; text-indent:-14px}
+.ln.hl .src{background:linear-gradient(transparent 8%, var(--marker-soft) 8%, var(--marker-soft) 92%, transparent 92%)}
+.ln.pick{cursor:pointer}
+.ln.pick:hover .src{outline:2px dashed var(--pen); outline-offset:1px}
+.ln.chosen .src{background:var(--pen-soft); outline:2px solid var(--pen)}
+.ln.right .src{background:var(--ok-soft); outline:2px solid var(--ok)}
+.ln.wrong .src{background:var(--bad-soft); outline:2px solid var(--bad)}
+.t-kw{color:var(--t-kw); font-weight:600}
+.t-str{color:var(--t-str)}
+.t-com{color:var(--t-com); font-style:italic}
+.t-num{color:var(--t-num)}
+.t-fn{color:var(--t-fn)}
+
+/* ---------- завдання ---------- */
+.taskmap{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 20px}
+.tm{width:36px; height:36px; border:2px solid var(--ink); background:var(--panel); border-radius:4px; font:400 14px var(--f-display); cursor:pointer; display:grid; place-items:center}
+.tm.cur{background:var(--marker); color:#1B1D21}
+.tm.ok{background:var(--ok-soft); border-color:var(--ok); color:var(--ok)}
+.tm.bad{background:var(--bad-soft); border-color:var(--bad); color:var(--bad)}
+.task{background:var(--paper); color:var(--paper-ink); border:2px solid var(--ink); border-radius:4px; padding:24px 26px 26px; position:relative; box-shadow:6px 6px 0 var(--ink)}
+.task .head{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:baseline; margin-bottom:6px}
+.task .num{font:400 15px var(--f-display); color:#5A6068}
+.task .topic{font-size:13px; font-weight:700; padding:2px 10px; border-radius:999px; background:#DCE3FA; color:#2442B5}
+.task h2{font:600 24px/1.3 var(--f-body); margin:0 0 6px; max-width:860px}
+.task .sub{color:#5A6068; margin:0 0 16px; max-width:820px}
+.task .url{display:inline-block; font:600 16px var(--f-mono); background:#FFF6C2; border:2px solid #1B1D21; padding:6px 12px; border-radius:999px; margin:2px 0 16px; word-break:break-all}
+.pickboard{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+.mini{appearance:none; text-align:left; border:2px solid #C9CECC; background:#fff; color:#1B1D21; padding:10px 10px 8px; border-radius:4px; cursor:pointer; position:relative; font-size:14px; line-height:1.3; min-height:92px; display:flex; flex-direction:column; gap:4px}
+.mini.free{background:#EAF5EC}
+.mini b{font:700 20px/1 var(--f-hand); color:#2442B5}
+.mini .pr{font:600 13px var(--f-mono); margin-top:auto}
+.mini.free .pr{color:#C3321E; font-family:var(--f-body)}
+.mini .ct{font-size:12.5px; color:#5A6068}
+.mini[aria-pressed="true"]{border-color:#2442B5; box-shadow:inset 0 0 0 2px #2442B5}
+.mini[aria-pressed="true"]::after{content:"✓"; position:absolute; top:6px; right:8px; font:700 22px/1 var(--f-hand); color:#2442B5}
+.mini .ord{position:absolute; top:-12px; right:-10px; width:32px; height:32px; border-radius:50%; background:#2442B5; color:#fff; display:grid; place-items:center; font:400 15px var(--f-display)}
+.mini.r-ok{border-color:#1C7443 !important; box-shadow:inset 0 0 0 2px #1C7443}
+.mini.r-miss{border-style:dashed; border-color:#1C7443 !important}
+.mini.r-bad{border-color:#C3321E !important; box-shadow:inset 0 0 0 2px #C3321E}
+.mini.r-bad::after{content:"✗"; color:#C3321E}
+.nothing{margin-top:12px}
+.opts{display:flex; flex-direction:column; gap:10px; max-width:860px}
+.opt{appearance:none; text-align:left; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:start; border:2px solid #C9CECC; background:#fff; color:#1B1D21; padding:12px 14px; border-radius:4px; cursor:pointer; font-size:17px}
+.opt .l{font:400 15px/1.5 var(--f-display); color:#2442B5}
+.opt[aria-pressed="true"]{border-color:#2442B5; box-shadow:inset 0 0 0 2px #2442B5; background:#F1F4FE}
+.opt.r-ok{border-color:#1C7443; box-shadow:inset 0 0 0 2px #1C7443; background:#EFF8F2}
+.opt.r-bad{border-color:#C3321E; box-shadow:inset 0 0 0 2px #C3321E; background:#FDF1EE}
+.opt code{background:#EEF1F6}
+.chipset{display:flex; flex-wrap:wrap; gap:10px}
+.pchip{appearance:none; border:2px dashed #8E959C; background:#fff; color:#1B1D21; font:600 15px var(--f-mono); padding:8px 12px; border-radius:999px; cursor:pointer}
+.pchip[aria-pressed="true"]{border-style:solid; border-color:#2442B5; background:#2442B5; color:#fff}
+.pchip.r-ok{border-style:solid; border-color:#1C7443; background:#1C7443; color:#fff}
+.pchip.r-miss{border-style:solid; border-color:#1C7443; color:#1C7443}
+.pchip.r-bad{border-style:solid; border-color:#C3321E; background:#C3321E; color:#fff}
+.built{margin-top:16px; font:600 15px var(--f-mono); padding:10px 14px; background:#FFF6C2; border:2px solid #1B1D21; border-radius:6px; word-break:break-all}
+.built small{display:block; font:500 14px var(--f-body); color:#5A6068; margin-top:4px}
+.nums{display:flex; flex-wrap:wrap; gap:16px 26px}
+.nums label{display:flex; flex-direction:column; gap:4px; font-weight:600}
+.nums input{width:120px; font:600 24px var(--f-mono); padding:6px 10px; border:2px solid #1B1D21; border-radius:6px; background:#fff; color:#1B1D21}
+.nums input.r-ok{border-color:#1C7443; background:#EFF8F2}
+.nums input.r-bad{border-color:#C3321E; background:#FDF1EE}
+.match{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 16px; align-items:center; max-width:980px}
+@media (max-width:720px){ .match{grid-template-columns:minmax(0,1fr)} }
+.match .orm{font:600 14.5px var(--f-mono); background:#F4F5F3; border:2px solid #C9CECC; padding:9px 12px; border-radius:4px; word-break:break-word}
+.match select{font:14.5px var(--f-mono); padding:9px 10px; border:2px solid #C9CECC; border-radius:4px; background:#fff; color:#1B1D21; width:100%}
+.match select.r-ok{border-color:#1C7443; background:#EFF8F2}
+.match select.r-bad{border-color:#C3321E; background:#FDF1EE}
+.snippet{font:14.5px/1.55 var(--f-mono); background:#F4F5F3; border:2px solid #C9CECC; border-radius:4px; padding:10px 14px; white-space:pre-wrap; margin:0 0 16px; color:#1B1D21; max-width:860px}
+.actions{display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:22px}
+.feedback{margin-top:22px; display:grid; grid-template-columns:auto minmax(0,1fr); gap:16px 22px; align-items:start; border-top:2px dashed #C9CECC; padding-top:20px}
+@media (max-width:640px){ .feedback{grid-template-columns:minmax(0,1fr)} }
+.stamp{font:400 26px/1 var(--f-display); text-transform:uppercase; letter-spacing:.04em; padding:10px 16px; border:4px double currentColor; border-radius:6px; transform:rotate(-7deg); display:inline-block; white-space:nowrap; animation:stamp .32s cubic-bezier(.2,.9,.3,1.3)}
+.stamp.ok{color:#1C7443}
+.stamp.bad{color:#C3321E}
+@keyframes stamp{from{transform:rotate(-7deg) scale(1.7); opacity:0} to{transform:rotate(-7deg) scale(1); opacity:1}}
+.why{font-size:17px}
+.why p{margin:0 0 10px}
+.why code{background:#EEF1F6}
+.why .snippet{margin:6px 0 10px}
+
+/* ---------- свій сайт і напиши сам ---------- */
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr)); gap:22px}
+.card{background:var(--paper); color:var(--paper-ink); border:2px solid var(--ink); border-radius:4px; padding:20px 22px; box-shadow:5px 5px 0 var(--ink); display:flex; flex-direction:column; gap:10px}
+.card h3{margin:0; font:600 20px/1.3 var(--f-body)}
+.card .step{font:400 14px var(--f-display); color:#5A6068}
+.copyurl{display:flex; border:2px solid #1B1D21; border-radius:6px; overflow:hidden}
+.copyurl code{flex:1; min-width:0; padding:8px 10px; background:#FFF6C2; font:600 14px var(--f-mono); word-break:break-all; border-radius:0}
+.copyurl button{border:0; border-left:2px solid #1B1D21; background:#fff; color:#1B1D21; padding:0 12px; cursor:pointer; font-weight:700; font-size:14px}
+.reveal{background:#F4F5F3; border-left:4px solid #1C7443; padding:10px 14px; font-size:16px}
+.reveal[hidden]{display:none}
+.selfmark{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+.selfmark .btn{padding:7px 14px; font-size:15px}
+.selfmark .btn[aria-pressed="true"]{background:#2442B5; color:#fff}
+.hintlist{display:flex; flex-direction:column; gap:14px; max-width:900px}
+.hint{background:var(--paper); color:var(--paper-ink); border:2px solid var(--ink); border-radius:4px; padding:16px 20px; position:relative}
+.hint .hn{font:700 24px/1 var(--f-hand); color:#2442B5}
+.hint pre{font:14.5px/1.55 var(--f-mono); background:#F4F5F3; border:2px solid #C9CECC; border-radius:4px; padding:10px 14px; overflow-x:auto; margin:8px 0 0; color:#1B1D21}
+.checklist{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px}
+.checklist label{display:flex; gap:10px; align-items:flex-start; cursor:pointer}
+.checklist input{width:20px; height:20px; margin-top:4px; accent-color:#2442B5}
+
+/* ---------- підсумок ---------- */
+.score{display:flex; flex-wrap:wrap; gap:22px; align-items:center; margin-bottom:22px}
+.score .big{font:400 64px/1 var(--f-display)}
+.score .big small{font-size:28px; color:var(--muted)}
+.bars{display:flex; flex-direction:column; gap:14px; max-width:760px}
+.bar{display:grid; grid-template-columns:minmax(0,230px) minmax(0,1fr) 70px; gap:12px; align-items:center}
+@media (max-width:640px){ .bar{grid-template-columns:minmax(0,1fr) 60px} .bar .track{grid-column:1/3; grid-row:2} }
+.bar .track{height:18px; border:2px solid var(--ink); border-radius:3px; background:var(--panel); overflow:hidden}
+.bar .fill{height:100%; background:var(--pen)}
+.bar .v{font:600 16px var(--f-mono); text-align:right}
+.redo{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+.foot{margin-top:46px; font-size:14px; color:var(--muted)}
+
+/* ---------- збери сам ---------- */
+.small{font-size:14px; color:var(--muted)}
+.stagemap{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 22px}
+.smap{appearance:none; display:flex; align-items:center; gap:8px; border:2px solid var(--ink); background:var(--panel); color:var(--ink); padding:6px 12px 6px 6px; border-radius:999px; cursor:pointer; font-size:15px; font-weight:600}
+.smap .k{width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font:400 13px var(--f-display); background:var(--paper); color:#1B1D21; border:2px solid var(--ink)}
+.smap.done .k{background:var(--ok); color:#fff; border-color:var(--ok)}
+.smap.cur{background:var(--marker); color:#1B1D21}
+.buildgrid{display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:26px; align-items:start}
+@media (max-width:1060px){ .buildgrid{grid-template-columns:minmax(0,1fr)} }
+.sidecol{position:sticky; top:12px; display:flex; flex-direction:column; gap:18px; max-height:calc(100vh - 24px); overflow:auto; padding:0 6px 6px 0}
+@media (max-width:1060px){ .sidecol{position:static; max-height:none; overflow:visible} }
+.stagecol{display:flex; flex-direction:column; gap:22px; min-width:0}
+.stagehead .snum{font:400 15px var(--f-display); color:var(--muted)}
+.stagehead h2{font:400 clamp(26px,3.4vw,36px)/1.05 var(--f-display); text-transform:uppercase; margin:4px 0 10px}
+.stagehead .goal{font-size:19px; margin:0; max-width:760px}
+.lbl{font:700 25px/1 var(--f-hand); color:var(--pen); margin:4px 0 -10px}
+.flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:8px}
+.fbox{flex:1 1 140px; min-width:0; background:var(--paper); color:var(--paper-ink); border:2px solid #9AA0A6; border-radius:4px; padding:8px 10px; display:flex; flex-direction:column; gap:4px; opacity:.62}
+.fbox.hot{opacity:1; border-color:#1B1D21; box-shadow:3px 3px 0 #1B1D21; background:linear-gradient(#FFF6C2,#FFF6C2)}
+.fbox .fn{font:400 12px/1.2 var(--f-display); text-transform:uppercase; letter-spacing:.04em; color:#5A6068}
+.fbox code{font:600 13px/1.35 var(--f-mono); background:none; padding:0; word-break:break-word; color:#1B1D21}
+.flow .arr{align-self:center; font:700 22px/1 var(--f-body); color:var(--muted)}
+@media (max-width:760px){ .flow{flex-direction:column} .flow .arr{transform:rotate(90deg)} }
+.ex{background:var(--paper); color:var(--paper-ink); border:2px solid var(--ink); border-radius:4px; padding:18px 20px; box-shadow:5px 5px 0 var(--ink)}
+.ex > *{--ink:#1B1D21; --pen:#2442B5; --on-pen:#FFFFFF; --muted:#5A6068}
+.exhead{display:flex; gap:12px; align-items:baseline; margin-bottom:12px}
+.exn{font:400 16px/1 var(--f-display); color:#fff; background:#2442B5; width:30px; height:30px; border-radius:50%; display:grid; place-items:center; flex:none}
+.exq{font-size:18.5px; font-weight:600}
+.exq code{background:#EEF1F6}
+.blankcode{font:15px/1.9 var(--f-mono); background:#F4F5F3; border:2px solid #C9CECC; border-radius:4px; padding:10px 14px; white-space:pre-wrap; word-break:break-word; margin:0; color:#1B1D21; overflow-x:auto}
+.gap{font:600 15px var(--f-mono); border:0; border-bottom:2px solid #2442B5; background:#FFF6C2; color:#1B1D21; padding:1px 4px; margin:0 1px; border-radius:3px 3px 0 0; max-width:100%}
+.gap:focus{outline:2px solid #2442B5; outline-offset:1px}
+.gap.r-ok{background:#DDF0E3; border-color:#1C7443}
+.gap.r-bad{background:#FBE3DE; border-color:#C3321E; text-decoration:line-through}
+.gapfix{font:700 15px var(--f-mono); color:#1C7443; margin:0 4px 0 2px}
+.ord-seq{min-height:64px; border:2px dashed #8E959C; border-radius:4px; padding:8px; display:flex; flex-direction:column; gap:6px; margin-bottom:12px; background:#FAFBF9}
+.ord-pool{display:flex; flex-direction:column; gap:6px}
+.oline{appearance:none; text-align:left; font:14.5px/1.45 var(--f-mono); white-space:pre-wrap; word-break:break-word; background:#fff; color:#1B1D21; border:2px solid #C9CECC; border-radius:4px; padding:7px 10px; cursor:pointer; display:flex; gap:10px}
+.oline:hover{border-color:#2442B5}
+.oline.in{background:#F1F4FE; border-color:#2442B5}
+.oline .on{font:400 13px/1.5 var(--f-display); color:#2442B5; flex:none}
+.oline.r-ok{border-color:#1C7443; background:#EFF8F2}
+.oline.r-bad{border-color:#C3321E; background:#FDF1EE}
+.solution{margin-top:10px}
+.fix{font-size:20px; grid-column:2}
+.stagefoot{display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:6px 0 10px}
+.hand.big{font-size:28px; margin:0}
+.warnline{flex-basis:100%; margin:0; color:var(--bad); font-weight:600}
+.finale{background:var(--paper); color:var(--paper-ink); border:2px solid var(--ink); padding:18px 20px; box-shadow:5px 5px 0 var(--ink)}
+.finale p{margin:0 0 10px}
+.ctabs{display:flex; gap:4px; margin-bottom:-2px}
+.ctab{appearance:none; border:2px solid var(--ink); border-bottom:0; background:var(--panel); color:var(--ink); padding:6px 12px; border-radius:6px 6px 0 0; font:600 13px var(--f-mono); cursor:pointer}
+.ctab[aria-selected="true"]{background:var(--code-bg); color:var(--code-ink)}
+.small-code{font-size:13px; max-height:none}
+.ln.gone .src{text-decoration:line-through; color:var(--bad); opacity:.75}
+.ln.gone .num,.ln.hl .num{color:var(--ink); font-weight:700}
+.tries{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0 6px}
+.pchip.sm{font-size:13px; padding:4px 10px; border-color:#8E959C}
+.pinfo{margin:8px 0 6px; font-size:16px}
+.pinfo b{font:400 20px var(--f-display)}
+.ign{display:block; color:var(--bad); font-size:14px; font-weight:600; margin-top:2px}
+.plist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px}
+.plist li{display:grid; grid-template-columns:minmax(0,1fr) auto 70px; gap:10px; background:var(--paper); color:#1B1D21; border:1px solid #C9CECC; border-radius:3px; padding:5px 10px; font-size:14.5px}
+.plist li.free{background:var(--paper-free)}
+.plist li .mono{font-weight:600}
+.plist li .c{color:#5A6068; font-size:13px; text-align:right}
+.plist li.none{display:block; font:700 22px var(--f-hand); color:#5A6068}
+.pager .small{flex-basis:100%}
+.sumh{font:400 22px var(--f-display); text-transform:uppercase; margin:6px 0 12px}
+#v-summary .bars + .sumh{margin-top:30px}
+
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+@media (max-width:560px){ body{font-size:17px} .task{padding:18px 16px 20px} .task h2{font-size:21px} .tab{padding:8px 11px 7px; font-size:15px} .urlbar .host{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="kicker">тренажер до кроку 9</span>
+      <h1>Пошук на <span>дошці оголошень</span></h1>
+    </div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Розділи">
+    <button class="tab" role="tab" data-view="build" aria-selected="true"><span class="n">01</span>Збери сам</button>
+    <button class="tab" role="tab" data-view="lab" aria-selected="false"><span class="n">02</span>Лабораторія</button>
+    <button class="tab" role="tab" data-view="tasks" aria-selected="false"><span class="n">03</span>Перевірка <span class="badge" id="taskBadge">0/0</span></button>
+    <button class="tab" role="tab" data-view="site" aria-selected="false"><span class="n">04</span>На своєму сайті</button>
+    <button class="tab" role="tab" data-view="write" aria-selected="false"><span class="n">05</span>Напиши сам</button>
+    <button class="tab" role="tab" data-view="summary" aria-selected="false"><span class="n">06</span>Підсумок</button>
+  </nav>
+
+  <!-- ЗБЕРИ САМ -->
+  <section class="view on" id="v-build" role="tabpanel">
+    <p class="lede">Будуємо пошук з нуля, як він пишеться насправді: по одному фільтру. На кожному етапі видно, що змінюється у <b>формі</b>, в <b>адресі</b>, у <b>views.py</b>, у <b>базі</b> і в <b>шаблоні</b>. Після етапу рядки потрапляють у «Твій код», а прев'ю сайту починає на них реагувати.</p>
+    <div class="stagemap" id="stageMap"></div>
+    <div class="buildgrid">
+      <div class="stagecol" id="stageBox"></div>
+      <aside class="sidecol">
+        <div class="sheet">
+          <h2>Твій код</h2>
+          <div class="ctabs" role="tablist"><button class="ctab" data-tab="view" role="tab">views.py</button><button class="ctab" data-tab="tpl" role="tab">product_list.html</button></div>
+          <div class="code small-code" id="bCode"></div>
+          <p class="small" id="bCodeNote"></p>
+        </div>
+        <div class="sheet">
+          <h2>Прев'ю сайту</h2>
+          <form class="urlbar" id="pForm" autocomplete="off"><span class="host">127.0.0.1:8000</span><input id="pUrl" spellcheck="false" aria-label="Адреса для прев'ю"><button type="submit">Відкрити</button></form>
+          <div class="tries" id="pTries"></div>
+          <p class="pinfo" id="pInfo"></p>
+          <ul class="plist" id="pList"></ul>
+          <div class="pager" id="pPager"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ЛАБОРАТОРІЯ -->
+  <section class="view" id="v-lab" role="tabpanel">
+    <p class="lede">Це твій каталог у мініатюрі: 15 оголошень і той самий код, що у <code>views.py</code>. Змінюй фільтри або пиши прямо в адресу. Праворуч видно, як оголошення проходять фільтр за фільтром і який рядок коду щойно спрацював.</p>
+    <div class="lab">
+      <div>
+        <div class="sheet">
+          <h2>Адреса сторінки</h2>
+          <form class="urlbar" id="urlForm" autocomplete="off">
+            <span class="host">127.0.0.1:8000</span>
+            <input id="urlInput" spellcheck="false" aria-label="Адреса сторінки">
+            <button type="submit">Відкрити</button>
+          </form>
+          <p class="urlhint">Можна вписати що завгодно, наприклад <code>?price_min=дорого</code>, і натиснути «Відкрити».</p>
+          <h2>Форма фільтрів</h2>
+          <form id="filterForm" autocomplete="off">
+            <div class="filters">
+              <div class="fld"><label for="f_q">q</label><input id="f_q" name="q" placeholder="Що шукаєте?"></div>
+              <div class="fld"><label for="f_category">category</label><select id="f_category" name="category"></select></div>
+              <div class="fld"><label for="f_deal">deal</label><select id="f_deal" name="deal"><option value="">Продаж і безкоштовно</option><option value="sale">Продаю</option><option value="free">Віддаю безкоштовно</option></select></div>
+              <div class="fld"><label for="f_city">city</label><input id="f_city" name="city" placeholder="Місто"></div>
+              <div class="fld"><label for="f_price_min">price_min</label><input id="f_price_min" name="price_min" type="number" min="0" placeholder="Ціна від"></div>
+              <div class="fld"><label for="f_price_max">price_max</label><input id="f_price_max" name="price_max" type="number" min="0" placeholder="до"></div>
+              <div class="fld"><label for="f_sort">sort</label><select id="f_sort" name="sort"><option value="new">Спочатку нові</option><option value="cheap">Спочатку дешевші</option><option value="expensive">Спочатку дорожчі</option></select></div>
+            </div>
+            <div class="row"><button class="btn primary" type="submit">Показати</button><button class="btn ghost" type="button" id="resetLab">Скинути все</button></div>
+          </form>
+        </div>
+        <div class="found"><span><b id="foundCount">0</b> знайдено</span><span id="pageInfo" class="mono"></span></div>
+        <div class="board" id="board"></div>
+        <div class="pager" id="pager"></div>
+      </div>
+      <div>
+        <div class="sheet">
+          <h2>Конвеєр фільтрів</h2>
+          <ol class="pipe" id="pipe"></ol>
+        </div>
+        <div style="height:18px"></div>
+        <div class="code" id="labCode" aria-label="Код views.py"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ЗАВДАННЯ -->
+  <section class="view" id="v-tasks" role="tabpanel">
+    <p class="lede">Код зібрано. Тепер перевір, чи можеш передбачити, що він зробить: шістнадцять завдань. Спершу відповідай, потім натискай «Перевірити». Кожне завдання можна відкрити в лабораторії й подивитися, що відбувається в коді.</p>
+    <div class="taskmap" id="taskmap"></div>
+    <div id="taskBox"></div>
+  </section>
+
+  <!-- СВІЙ САЙТ -->
+  <section class="view" id="v-site" role="tabpanel">
+    <p class="lede">Тепер те саме, але на твоєму справжньому сайті. Запусти <code>python manage.py runserver</code>, відкрий адресу, подивись, і лише потім розкривай відповідь.</p>
+    <div class="cards" id="siteCards"></div>
+  </section>
+
+  <!-- НАПИШИ САМ -->
+  <section class="view" id="v-write" role="tabpanel">
+    <p class="lede">Додай у свій справжній каталог фільтр за <b>станом речі</b>: «Нове» або «Вживане». Готового коду тут немає: ти вже бачив цей шаблон на п'яти фільтрах. Підказки — це питання, які допомагають згадати, що робити. Відкривай їх по одній, лише коли застряг.</p>
+    <div class="hintlist" id="hints"></div>
+  </section>
+
+  <!-- ПІДСУМОК -->
+  <section class="view" id="v-summary" role="tabpanel">
+    <div id="summaryBox"></div>
+  </section>
+
+  <p class="foot">Код у тренажері — з кроку 9 посібника «Django від нуля до деплою». Прогрес зберігається лише в цьому браузері.</p>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== ДАНІ ===================== */
+var CATS = [
+  {id:1, name:"Електроніка"}, {id:2, name:"Книги"}, {id:3, name:"Одяг"},
+  {id:4, name:"Дитячі речі"}, {id:5, name:"Меблі"}, {id:6, name:"Спорт"}
+];
+var ITEMS = [
+  {id:1,  name:"Смартфон Samsung A54", desc:"Стан ідеальний, з чохлом", cat:1, deal:"sale", price:5200, city:"Київ", age:1},
+  {id:2,  name:"Підручники 5–9 клас", desc:"Математика і фізика, віддам безкоштовно", cat:2, deal:"free", price:null, city:"Львів", age:2},
+  {id:3,  name:"Дитячий велосипед", desc:"Колеса 16 дюймів, на 4–6 років", cat:4, deal:"sale", price:1800, city:"Львів", age:3},
+  {id:4,  name:"Зимова куртка", desc:"Розмір M, дуже тепла", cat:3, deal:"sale", price:650, city:"Одеса", age:4},
+  {id:5,  name:"Візочок для ляльок", desc:"Віддам дівчинці, майже новий", cat:4, deal:"free", price:null, city:"Львів", age:5},
+  {id:6,  name:"Навушники JBL", desc:"Bluetooth, тримають 20 годин", cat:1, deal:"sale", price:900, city:"Київ", age:6},
+  {id:7,  name:"Письмовий стіл", desc:"Самовивіз, третій поверх", cat:5, deal:"free", price:null, city:"Дніпро", age:7},
+  {id:8,  name:"Гантелі 2×5 кг", desc:"Для тренувань вдома", cat:6, deal:"sale", price:450, city:"Київ", age:8},
+  {id:9,  name:"Гаррі Поттер, 7 книг", desc:"Повний комплект українською", cat:2, deal:"sale", price:1500, city:"Одеса", age:9},
+  {id:10, name:"Ролики", desc:"Розмір 38, захист у подарунок", cat:6, deal:"sale", price:1200, city:"Дніпро", age:10},
+  {id:11, name:"Дитячий одяг пакетом", desc:"На 2–3 роки, усе чисте", cat:4, deal:"free", price:null, city:"Київ", age:11},
+  {id:12, name:"Ноутбук Lenovo", desc:"Для навчання, батарея нова", cat:1, deal:"sale", price:8500, city:"Львів", age:12},
+  {id:13, name:"Шафа для одягу", desc:"Віддам за самовивіз", cat:5, deal:"free", price:null, city:"Київ", age:13},
+  {id:14, name:"Самокат", desc:"Складаний. Ще є шолом, підійде і для велосипеда", cat:6, deal:"sale", price:300, city:"Одеса", age:14},
+  {id:15, name:"Крісло-мішок", desc:"Уже продано", cat:5, deal:"sale", price:700, city:"Київ", age:15, sold:true}
+];
+var BY_ID = {}; ITEMS.forEach(function(i){ BY_ID[i.id] = i; });
+var ACTIVE = ITEMS.filter(function(i){ return !i.sold; });
+var PER_PAGE = 9;
+var CATNAME = {}; CATS.forEach(function(c){ CATNAME[c.id] = c.name; });
+
+/* ===================== КОД З views.py ===================== */
+var CODE = [
+'SORT_OPTIONS = {',
+'    "new": F("created_at").desc(),',
+'    "cheap": F("price").asc(nulls_first=True),',
+'    "expensive": F("price").desc(nulls_last=True),',
+'}',
+'',
+'',
+'def parse_price(value):',
+'    """Число з адреси або None, якщо там не число."""',
+'    try:',
+'        number = Decimal(value)',
+'    except (InvalidOperation, TypeError):',
+'        return None',
+'    return number if number.is_finite() else None',
+'',
+'',
+'def product_list(request):',
+'    products = Product.objects.filter(status=Product.Status.ACTIVE)',
+'    params = request.GET',
+'',
+'    query = params.get("q", "").strip()',
+'    if query:',
+'        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))',
+'',
+'    category_id = params.get("category", "")',
+'    if category_id.isdigit():',
+'        products = products.filter(category_id=category_id)',
+'',
+'    deal = params.get("deal", "")',
+'    if deal in Product.DealType.values:',
+'        products = products.filter(deal_type=deal)',
+'',
+'    city = params.get("city", "").strip()',
+'    if city:',
+'        products = products.filter(city__icontains=city)',
+'',
+'    price_min = parse_price(params.get("price_min"))',
+'    if price_min is not None:',
+'        products = products.filter(price__gte=price_min)',
+'',
+'    price_max = parse_price(params.get("price_max"))',
+'    if price_max is not None:',
+'        products = products.filter(Q(price__lte=price_max) | Q(price__isnull=True))',
+'',
+'    sort = params.get("sort", "new")',
+'    products = products.order_by(SORT_OPTIONS.get(sort, SORT_OPTIONS["new"]))',
+'',
+'    page = Paginator(products, 9).get_page(params.get("page"))',
+'    querystring = params.copy()',
+'    querystring.pop("page", None)'
+];
+
+/* ===================== УТИЛІТИ ===================== */
+var $ = function(s, r){ return (r || document).querySelector(s); };
+var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function money(p){ return p == null ? "Безкоштовно" : String(p).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " грн"; }
+function shuffle(a){ var b = a.slice(); for (var i = b.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = b[i]; b[i] = b[j]; b[j] = t; } return b; }
+function rot(id){ return ((id * 37) % 7 - 3) * 0.45 + "deg"; }
+
+var KEY = "dj-search-trainer-v1";
+var store = {};
+try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ store = {}; }
+store.tasks = store.tasks || {}; store.site = store.site || {}; store.hints = store.hints || 0; store.checks = store.checks || {};
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){} }
+
+/* підсвічування Python */
+var KW = /^(def|return|if|in|is|not|None|True|False|try|except|import|from|and|or|else)$/;
+function hlPy(line){
+  var re = /("""[^"]*"""|"(?:\\.|[^"\\])*")|(#.*$)|(\b\d+\b)|([A-Za-z_]\w*)/g, out = "", last = 0, m, prev = "";
+  while ((m = re.exec(line))){
+    out += esc(line.slice(last, m.index));
+    if (m[1]) out += '<span class="t-str">' + esc(m[1]) + '</span>';
+    else if (m[2]) out += '<span class="t-com">' + esc(m[2]) + '</span>';
+    else if (m[3]) out += '<span class="t-num">' + m[3] + '</span>';
+    else if (m[4]){
+      if (KW.test(m[4])) out += '<span class="t-kw">' + m[4] + '</span>';
+      else if (prev === "def") out += '<span class="t-fn">' + m[4] + '</span>';
+      else out += esc(m[4]);
+      prev = m[4];
+    }
+    last = re.lastIndex;
+  }
+  return out + esc(line.slice(last));
+}
+function codeHtml(lines, opts){
+  opts = opts || {};
+  return lines.map(function(l, i){
+    var n = i + 1, cls = "ln" + (opts.pick && l.trim() ? " pick" : "");
+    return '<div class="' + cls + '" data-line="' + n + '"><span class="num">' + n + '</span><span class="src">' + (hlPy(l) || " ") + '</span></div>';
+  }).join("");
+}
+
+/* ===================== ДВИГУН: та сама логіка, що у views.py ===================== */
+function qget(sp, k){ var all = sp.getAll(k); return all.length ? all[all.length - 1] : null; }
+function sqliteHas(hay, needle){
+  // icontains у SQLite не зважає на регістр лише для латиниці
+  var low = function(s){ return s.replace(/[A-Z]/g, function(c){ return c.toLowerCase(); }); };
+  return low(hay).indexOf(low(needle)) >= 0;
+}
+function parsePrice(raw){
+  if (raw == null) return { value:null, why:"параметра немає в адресі: get() повернув None → TypeError → None" };
+  var t = raw.trim();
+  if (/^[+-]?(nan|snan|inf|infinity)$/i.test(t)) return { value:null, why:"Decimal прочитав «" + raw + "», але is_finite() = False → None" };
+  if (!/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(t)) return { value:null, why:(raw === "" ? "порожній рядок" : "«" + raw + "» — не число") + " → InvalidOperation → None" };
+  return { value:Number(t), why:"число " + Number(t) };
+}
+function cmpNew(a, b){ return a.age - b.age; }
+function cmpCheap(a, b){ if (a.price == null && b.price == null) return a.age - b.age; if (a.price == null) return -1; if (b.price == null) return 1; return a.price - b.price; }
+function cmpExp(a, b){ if (a.price == null && b.price == null) return a.age - b.age; if (a.price == null) return 1; if (b.price == null) return -1; return b.price - a.price; }
+var SORTS = { "new":cmpNew, "cheap":cmpCheap, "expensive":cmpExp };
+
+var ALL = { q:1, category:1, deal:1, city:1, price:1, sort:1, page:1, qs:1 };
+function run(search, en){
+  en = en || ALL;
+  var sp = new URLSearchParams(search.replace(/^.*\?/, ""));
+  var stages = [], cur = ITEMS.slice();
+  function stage(key, title, lines, note, keep, skipped){
+    var before = cur.map(function(i){ return i.id; });
+    if (keep) cur = cur.filter(keep);
+    stages.push({ key:key, title:title, lines:lines, note:note, before:before, after:cur.map(function(i){ return i.id; }), skipped:!!skipped });
+  }
+  function absent(key, title, param){
+    var v = qget(sp, param);
+    stage(key, title, [], (v != null && v !== "" ? "В адресі є <b>" + esc(param) + "=" + esc(v) + "</b>, але" : "") + " у коді цього фільтра ще немає — параметр ігнорується.", null, true);
+    if (v != null && v !== "") stages[stages.length - 1].ignored = true;
+  }
+  stage("active", "Лише активні", [18], "Продане <b>Крісло-мішок</b> відсіюється одразу: <code>status=ACTIVE</code>.", function(i){ return !i.sold; });
+
+  var q = (qget(sp, "q") || "").trim();
+  if (!en.q) absent("q", "Пошук q", "q");
+  else if (q) stage("q", "Пошук q", [21,22,23], "<b>query = «" + esc(q) + "»</b> — шукаємо в назві <b>або</b> в описі.", function(i){ return sqliteHas(i.name, q) || sqliteHas(i.desc, q); });
+  else stage("q", "Пошук q", [21,22], "q порожній — <code>if query:</code> не виконується.", null, true);
+
+  var c = qget(sp, "category") || "";
+  if (!en.category) absent("category", "Категорія", "category");
+  else if (/^\d+$/.test(c)) stage("category", "Категорія", [25,26,27], "<b>category = " + esc(c) + "</b>" + (CATNAME[Number(c)] ? " (" + CATNAME[Number(c)] + ")" : " — такої категорії немає, тому нічого не знайдеться") + ".", function(i){ return i.cat === Number(c); });
+  else stage("category", "Категорія", [25,26], c ? "«" + esc(c) + "» — <code>isdigit()</code> = False, фільтр пропущено." : "Не задано — фільтр пропущено.", null, true);
+
+  var d = qget(sp, "deal") || "";
+  if (!en.deal) absent("deal", "Продаж чи безкоштовно", "deal");
+  else if (d === "sale" || d === "free") stage("deal", "Продаж чи безкоштовно", [29,30,31], "<b>deal = «" + d + "»</b> є серед <code>DealType.values</code>.", function(i){ return i.deal === d; });
+  else stage("deal", "Продаж чи безкоштовно", [29,30], d ? "«" + esc(d) + "» немає серед <code>[\"sale\", \"free\"]</code> — пропущено." : "Не задано — фільтр пропущено.", null, true);
+
+  var city = (qget(sp, "city") || "").trim();
+  if (!en.city) absent("city", "Місто", "city");
+  else if (city) stage("city", "Місто", [33,34,35], "<b>city = «" + esc(city) + "»</b>. У SQLite <code>icontains</code> не зважає на регістр лише для латиниці.", function(i){ return sqliteHas(i.city, city); });
+  else stage("city", "Місто", [33,34], "Не задано — фільтр пропущено.", null, true);
+
+  if (!en.price){ absent("price_min", "Ціна від", "price_min"); absent("price_max", "Ціна до", "price_max"); }
+  else {
+    var pmin = parsePrice(qget(sp, "price_min"));
+    if (pmin.value !== null) stage("price_min", "Ціна від", [37,38,39,11], "<b>" + pmin.why + "</b>: лишаються ціни ≥ " + pmin.value + ". У безкоштовних ціни немає (NULL), тож вони відсіюються.", function(i){ return i.price != null && i.price >= pmin.value; });
+    else stage("price_min", "Ціна від", [37,38,8,9,10,11,12,13,14], "parse_price: " + pmin.why + ". Фільтр пропущено.", null, true);
+    var pmax = parsePrice(qget(sp, "price_max"));
+    if (pmax.value !== null) stage("price_max", "Ціна до", [41,42,43], "<b>" + pmax.why + "</b>: ціна ≤ " + pmax.value + " <b>або</b> ціни немає. Безкоштовні лишаються.", function(i){ return i.price == null || i.price <= pmax.value; });
+    else stage("price_max", "Ціна до", [41,42,8,9,10,11,12,13,14], "parse_price: " + pmax.why + ". Фільтр пропущено.", null, true);
+  }
+
+  var sRaw = qget(sp, "sort"), sort = sRaw == null ? "new" : sRaw, sKey = SORTS[sort] ? sort : "new";
+  if (!en.sort){
+    cur.sort(cmpNew);
+    stages.push({ key:"sort", title:"Сортування", lines:[], before:cur.map(function(i){ return i.id; }), after:cur.map(function(i){ return i.id; }), skipped:true,
+      note:(sRaw ? "В адресі є <b>sort=" + esc(sRaw) + "</b>, але сортування" : "Сортування") + " в коді ще немає: працює <code>Meta.ordering</code> моделі — спочатку нові.", ignored:!!sRaw });
+  } else {
+    cur.sort(SORTS[sKey]);
+    stages.push({ key:"sort", title:"Сортування", lines:[45,46,1,2,3,4,5], before:cur.map(function(i){ return i.id; }), after:cur.map(function(i){ return i.id; }), skipped:false,
+      note: (SORTS[sort] ? "<b>sort = «" + esc(sort) + "»</b>" : (sRaw == null ? "sort не задано" : "«" + esc(sRaw) + "» немає в словнику") + " → <code>SORT_OPTIONS[\"new\"]</code>") +
+        (sKey === "new" ? ": спочатку нові." : sKey === "cheap" ? ": від дешевших; безкоштовні (NULL) — першими." : ": від дорожчих; безкоштовні (NULL) — останніми.") });
+  }
+
+  var count = cur.length, numPages, page, pageItems, pWhy;
+  if (!en.page){
+    numPages = 1; page = 1; pageItems = cur.slice();
+    stages.push({ key:"page", title:"Сторінка", lines:[], before:cur.map(function(i){ return i.id; }), after:cur.map(function(i){ return i.id; }), skipped:true,
+      note:"Пагінації в коді ще немає: усі " + count + " оголошень на одній сторінці.", ignored:!!qget(sp, "page") });
+  } else {
+    numPages = Math.max(1, Math.ceil(count / PER_PAGE));
+    var pRaw = qget(sp, "page");
+    if (pRaw == null || pRaw === "") { page = 1; pWhy = "page не задано → сторінка 1"; }
+    else if (!/^\s*[+-]?\d+\s*$/.test(pRaw)) { page = 1; pWhy = "«" + esc(pRaw) + "» — не ціле число → get_page дає сторінку 1"; }
+    else { var n = parseInt(pRaw, 10); if (n < 1 || n > numPages) { page = numPages; pWhy = "сторінки " + n + " немає → get_page дає останню, " + numPages; } else { page = n; pWhy = "сторінка " + n + " з " + numPages; } }
+    pageItems = cur.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    stages.push({ key:"page", title:"Сторінка", lines:[48,49,50], before:cur.map(function(i){ return i.id; }), after:pageItems.map(function(i){ return i.id; }), skipped:false,
+      note:"<b>" + pWhy + "</b>. По " + PER_PAGE + " на сторінці." + (en.qs ? "" : " Посилання «Далі» поки містить лише <code>page</code>: <code>querystring</code> ще немає.") });
+  }
+
+  var qs = new URLSearchParams(sp.toString()); qs.delete("page");
+  return { stages:stages, all:cur, ids:cur.map(function(i){ return i.id; }), count:count, page:page, numPages:numPages, pageItems:pageItems, querystring:en.qs ? qs.toString() : "" };
+}
+
+function decodeQs(s){ try { return decodeURIComponent(s.replace(/\+/g, " ")); } catch(e){ return s; } }
+
+/* ===================== ЛАБОРАТОРІЯ ===================== */
+var labSearch = "";
+function noteHtml(i){
+  return '<article class="note' + (i.deal === "free" ? " free" : "") + '" style="--r:' + rot(i.id) + '">' +
+    '<span class="kind">' + (i.deal === "free" ? "ВІДДАМ" : "ПРОДАМ") + ' · №' + i.id + '</span>' +
+    '<h3>' + esc(i.name) + '</h3><p class="desc">' + esc(i.desc) + '</p>' +
+    '<p class="meta">' + esc(CATNAME[i.cat]) + ', ' + i.age + ' дн. тому</p>' +
+    '<div class="tear"><span class="p">' + money(i.price) + '</span><span>' + esc(i.city) + '</span></div></article>';
+}
+function chipsHtml(st){
+  var after = {}; st.after.forEach(function(id){ after[id] = true; });
+  return st.before.map(function(id){ var it = BY_ID[id];
+    return '<span class="chip' + (it.deal === "free" ? " free" : "") + (after[id] ? "" : " gone") + '" title="' + esc(it.name) + '">№' + id + '</span>'; }).join("");
+}
+function renderLab(){
+  var r = run(labSearch);
+  $("#urlInput").value = "/products/" + (labSearch ? "?" + decodeQs(labSearch) : "");
+  // форма показує поточні значення, як value="{{ filters.q }}" у шаблоні
+  var sp = new URLSearchParams(labSearch);
+  ["q","category","deal","city","price_min","price_max","sort"].forEach(function(k){
+    var el = $("#f_" + k), v = qget(sp, k);
+    if (el.tagName === "SELECT"){ var has = $$("option", el).some(function(o){ return o.value === v; }); el.value = has ? v : (k === "sort" ? "new" : ""); }
+    else el.value = el.type === "number" ? (parsePrice(v).value !== null ? v.trim() : "") : (v || "");
+  });
+  $("#foundCount").textContent = r.count;
+  $("#pageInfo").textContent = "сторінка " + r.page + " з " + r.numPages;
+  $("#board").innerHTML = r.pageItems.length ? r.pageItems.map(noteHtml).join("") : '<p class="empty">Нічого не знайдено.</p>';
+  var pg = "", qs = r.querystring;
+  if (r.page > 1) pg += '<button class="btn" data-go="' + esc(qs + (qs ? "&" : "") + "page=" + (r.page - 1)) + '">Назад</button>';
+  if (r.page < r.numPages) pg += '<button class="btn" data-go="' + esc(qs + (qs ? "&" : "") + "page=" + (r.page + 1)) + '">Далі</button>';
+  if (r.numPages > 1) pg += '<span class="href">Посилання «' + (r.page < r.numPages ? "Далі" : "Назад") + '» з шаблону: <b>?' + esc(decodeQs(qs)) + '&amp;page=' + (r.page < r.numPages ? r.page + 1 : r.page - 1) + '</b></span>';
+  $("#pager").innerHTML = pg;
+  $("#pipe").innerHTML = r.stages.map(function(st, idx){
+    var dropped = st.before.length - st.after.length;
+    var cnt = st.key === "sort" ? "порядок" : st.key === "page" ? st.after.length + " на сторінці" : (dropped ? st.before.length + ' → ' + st.after.length + ' <span class="drop">−' + dropped + '</span>' : st.after.length);
+    return '<li class="stage' + (st.skipped ? " skip" : "") + '" tabindex="0" data-lines="' + st.lines.join(",") + '">' +
+      '<span class="no">' + (idx + 1) + '</span><span class="what">' + st.title + '</span><span class="cnt">' + cnt + '</span>' +
+      '<span class="note2">' + st.note + '</span>' + (st.key === "page" ? "" : '<span class="chips">' + chipsHtml(st) + '</span>') + '</li>';
+  }).join("");
+  $$("#pipe .stage").forEach(function(li){
+    var on = function(){ $$("#pipe .stage").forEach(function(x){ x.classList.toggle("hot", x === li); }); markLines($("#labCode"), li.dataset.lines.split(",").map(Number)); };
+    li.addEventListener("mouseenter", on); li.addEventListener("focus", on); li.addEventListener("click", on);
+  });
+  markLines($("#labCode"), []);
+}
+function markLines(box, nums){
+  var set = {}; nums.forEach(function(n){ set[n] = true; });
+  $$(".ln", box).forEach(function(l){ l.classList.toggle("hl", !!set[l.dataset.line]); });
+}
+function openLab(search){ labSearch = (search || "").replace(/^\?/, ""); renderLab(); }
+
+function initLab(){
+  $("#f_category").innerHTML = '<option value="">Усі категорії</option>' + CATS.map(function(c){ return '<option value="' + c.id + '">' + c.name + '</option>'; }).join("");
+  $("#labCode").innerHTML = codeHtml(CODE);
+  $("#filterForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    // як справжня GET-форма: у адресу йдуть усі поля, навіть порожні
+    var sp = new URLSearchParams();
+    ["q","category","deal","city","price_min","price_max","sort"].forEach(function(k){ sp.append(k, $("#f_" + k).value); });
+    openLab(sp.toString());
+  });
+  $("#resetLab").addEventListener("click", function(){ openLab(""); });
+  $("#urlForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var v = $("#urlInput").value.trim(), i = v.indexOf("?");
+    openLab(i >= 0 ? new URLSearchParams(v.slice(i + 1)).toString() : "");
+  });
+  $("#pager").addEventListener("click", function(e){ var b = e.target.closest("[data-go]"); if (b) openLab(b.dataset.go); });
+  openLab("");
+}
+
+/* ===================== ЗАВДАННЯ ===================== */
+function urlOf(s){ return "/products/?" + s; }
+var TASKS = [
+  { type:"pick", topic:"Фільтри", url:"deal=free",
+    title:"Які оголошення покаже ця адреса?",
+    sub:"Познач усі папірці, що пройдуть фільтри (на всіх сторінках).",
+    why:"<p>Параметр <code>deal=free</code> є серед <code>Product.DealType.values</code>, тому спрацьовує рядок 31: <code>filter(deal_type=\"free\")</code>. Лишаються лише ті, хто віддає безкоштовно.</p>", lines:[29,30,31] },
+  { type:"pick", topic:"Фільтри", url:"price_max=500",
+    title:"«Ціна до 500». Що знайдеться?",
+    sub:"Уважно: тут є пастка.",
+    why:"<p>Фільтр у рядку 43: <code>Q(price__lte=500) | Q(price__isnull=True)</code>. Тобто ціна ≤ 500 <b>або</b> ціни немає взагалі. Безкоштовні речі теж «дешевші за 500», тому вони в результаті разом із гантелями (450) і самокатом (300).</p>", lines:[41,42,43] },
+  { type:"pick", topic:"Фільтри", url:"price_min=0",
+    title:"А тепер «ціна від 0»?",
+    sub:"Здається, що це «усі», але чи так?",
+    why:"<p><code>parse_price(\"0\")</code> повертає число 0, а не None, тож <code>if price_min is not None</code> виконується, і спрацьовує <code>price__gte=0</code>. У безкоштовних ціна — NULL, а порівняння NULL ≥ 0 у базі ніколи не дає «так». Тому всі безкоштовні зникають.</p><p>Саме тому для «ціни до» ми окремо дописали <code>| Q(price__isnull=True)</code>.</p>", lines:[37,38,39] },
+  { type:"pick", topic:"Фільтри", url:"q=велосипед",
+    title:"Пошук «велосипед». Що знайдеться?",
+    sub:"Пошук дивиться не лише в назву.",
+    why:"<p>Рядок 23: <code>Q(name__icontains=query) | Q(description__icontains=query)</code> — у назві <b>або</b> в описі. Велосипед має це слово в назві, а самокат — в описі («підійде і для велосипеда»). <code>icontains</code> шукає частину слова, тож «велосипеда» теж підходить.</p>", lines:[21,22,23] },
+  { type:"pick", topic:"Фільтри", url:"city=київ", allowNone:true,
+    title:"Місто «київ» з малої літери. Що буде на SQLite?",
+    sub:"Якщо нічого не знайдеться — обери кнопку «Нічого».",
+    why:"<p>У SQLite <code>icontains</code> не зважає на регістр <b>лише для латиниці</b>. «київ» і «Київ» для неї різні рядки, тож нічого не знайдеться. Перевір: пошук <code>q=jbl</code> знайде навушники «JBL», бо це латиниця.</p><p>На PostgreSQL обидва варіанти знайшлися б. Це особливість бази, а не помилка в коді.</p>", lines:[33,34,35] },
+  { type:"build", topic:"Адреса і параметри",
+    title:"Збери адресу: «безкоштовні дитячі речі у Львові»",
+    sub:"Обери потрібні параметри. Внизу одразу видно, скільки оголошень знайде твоя адреса.",
+    chips:[["q","дитячі"],["category","4"],["category","Дитячі речі"],["deal","free"],["deal","Віддаю безкоштовно"],["city","Львів"],["price_max","0"]],
+    correct:["category=4","deal=free","city=Львів"],
+    why:"<p>Категорію передаємо <b>номером</b> (<code>category=4</code>): у формі <code>&lt;option value=\"{{ category.pk }}\"&gt;</code>. Текст «Дитячі речі» не пройде <code>isdigit()</code>.</p><p>Тип угоди — значенням з бази (<code>deal=free</code>), а не підписом «Віддаю безкоштовно»: його немає серед <code>DealType.values</code>.</p><p><code>q=дитячі</code> шукав би слово в назві й описі, а не категорію; <code>price_max=0</code> зайвий.</p>", lines:[25,26,27,29,30,31] },
+  { type:"order", topic:"Сортування", url:"sort=cheap", ids:[8,2,3,14],
+    title:"Розстав так, як їх покаже «Спочатку дешевші»",
+    sub:"Натискай на папірці по черзі: перший, другий… Помилився — «Почати порядок знову».",
+    why:"<p><code>sort=cheap</code> → <code>F(\"price\").asc(nulls_first=True)</code>: від меншої ціни до більшої, а записи без ціни (безкоштовні) — <b>першими</b>. Тому: підручники (безкоштовно) → самокат 300 → гантелі 450 → велосипед 1800.</p>", lines:[45,46,3] },
+  { type:"order", topic:"Сортування", url:"sort=expensive", ids:[7,9,6,4],
+    title:"А тепер «Спочатку дорожчі»",
+    sub:"Де опиниться безкоштовний стіл?",
+    why:"<p><code>F(\"price\").desc(nulls_last=True)</code>: від більшої ціни до меншої, а безкоштовні — <b>останніми</b>. Без <code>nulls_last</code> різні бази ставили б NULL по-різному: PostgreSQL — першими, SQLite — останніми.</p>", lines:[45,46,4] },
+  { type:"choice", topic:"Захист від поганих адрес", url:"price_min=дорого",
+    title:"Хтось відкрив цю адресу. Що станеться?",
+    opts:["Помилка 500: сайт упаде","Фільтр «ціна від» просто не спрацює, видно всі оголошення","Не знайдеться нічого","Сторінка 404"], answer:1,
+    why:"<p><code>parse_price(\"дорого\")</code>: <code>Decimal(\"дорого\")</code> кидає <code>InvalidOperation</code>, функція ловить її в <code>except</code> і повертає <code>None</code>. Умова <code>if price_min is not None</code> не виконується — фільтр пропущено.</p><p>Без <code>parse_price</code> рядок <code>filter(price__gte=\"дорого\")</code> дав би помилку 500.</p>", lines:[8,9,10,11,12,13,14,37,38] },
+  { type:"line", topic:"Захист від поганих адрес", url:"category=abc",
+    title:"Клацни рядок, який не дає адресі ?category=abc зламати сайт",
+    sub:"Шукай перевірку, а не сам фільтр.",
+    answer:26,
+    why:"<p>Рядок 26: <code>if category_id.isdigit():</code>. «abc» — не цифри, тож <code>filter</code> у рядку 27 навіть не викликається. Без цієї перевірки Django спробував би перетворити «abc» на номер категорії і впав би з помилкою.</p>", lines:[25,26,27] },
+  { type:"choice", topic:"Захист від поганих адрес", url:"sort=hack",
+    title:"А якщо в адресі sort=hack?",
+    opts:["Помилка: такого сортування немає","Оголошення будуть без жодного порядку","Спрацює сортування «Спочатку нові»","Сайт відсортує за полем hack"], answer:2,
+    why:"<p>Рядок 46: <code>SORT_OPTIONS.get(sort, SORT_OPTIONS[\"new\"])</code>. Метод <code>get</code> словника повертає значення за замовчуванням, якщо ключа немає. «hack» у словнику немає — беремо «new».</p><p>Ми ніколи не передаємо в <code>order_by</code> те, що прийшло з адреси напряму: лише варіанти зі словника.</p>", lines:[45,46,1,2] },
+  { type:"choice", topic:"Сторінки", url:"sort=expensive",
+    title:"У шаблоні написали посилання так. Що зламається?",
+    snippet:'<a href="?page={{ page.next_page_number }}">Далі</a>',
+    opts:["Нічого, це те саме","На другій сторінці зникнуть пошук і фільтри","Сторінка 2 дасть помилку 404","Посилання буде вести на першу сторінку"], answer:1,
+    why:"<p>Посилання містить лише <code>page</code>. Усе інше — <code>q</code>, <code>deal</code>, <code>city</code>… — загубиться, і друга сторінка покаже всі оголошення без фільтрів.</p><p>Тому у view ми робимо <code>querystring = params.copy()</code>, прибираємо старий <code>page</code>, а в шаблоні пишемо <code>?{{ querystring }}&amp;page=…</code>.</p>", lines:[49,50] },
+  { type:"nums", topic:"Сторінки",
+    title:"Знайдено 20 оголошень, по 9 на сторінці",
+    sub:"Порахуй без калькулятора.",
+    fields:[["Скільки сторінок?",3],["Скільки оголошень на останній?",2]],
+    why:"<p>9 + 9 + 2 = 20: дві повні сторінки і третя з двома оголошеннями. <code>Paginator</code> рахує це сам: <code>paginator.num_pages</code> = 3.</p>", lines:[48] },
+  { type:"choice", topic:"Сторінки", url:"page=999",
+    title:"Адреса ?page=999, а сторінок лише 2",
+    opts:["Помилка 404","Порожня сторінка","Остання сторінка, тобто друга","Перша сторінка"], answer:2,
+    why:"<p>Ми використовуємо <code>paginator.get_page()</code>, а він «прощає» помилки: номер завеликий — остання сторінка, не число — перша. Відкрий у лабораторії, конвеєр покаже це на останньому кроці.</p><p>Строгий метод <code>paginator.page(999)</code> у такому разі кинув би помилку.</p>", lines:[48] },
+  { type:"choice", topic:"ORM і SQL",
+    title:"Чим відрізняються ці два варіанти пошуку?",
+    snippet:'# А\nproducts.filter(Q(name__icontains=q) | Q(description__icontains=q))\n\n# Б\nproducts.filter(name__icontains=q).filter(description__icontains=q)',
+    opts:["Нічим, обидва знаходять одне й те саме","А — слово в назві АБО в описі; Б — слово і в назві, І в описі","А — працює лише для латиниці","Б — швидший і знаходить більше"], answer:1,
+    why:"<p><code>|</code> між <code>Q</code> — це «або» (SQL <code>OR</code>). Кілька <code>filter</code> поспіль — це «і» (SQL <code>AND</code>): кожен наступний звужує результат.</p><p>З варіантом Б пошук «велосипед» не знайшов би нічого: у назві велосипеда слово є, а в описі — ні.</p>", lines:[21,22,23] },
+  { type:"match", topic:"ORM і SQL",
+    title:"З'єднай рядок Django з тим, що база отримає в SQL",
+    pairs:[
+      ['filter(price__gte=100)', 'WHERE price >= 100'],
+      ['filter(Q(price__lte=500) | Q(price__isnull=True))', 'WHERE price <= 500 OR price IS NULL'],
+      ['filter(city__icontains="Львів")', "WHERE city LIKE '%Львів%'"],
+      ['order_by(F("price").desc(nulls_last=True))', 'ORDER BY price DESC NULLS LAST'],
+      ['Paginator(products, 9) — сторінка 2', 'LIMIT 9 OFFSET 9']
+    ],
+    why:"<p>Django-запит — це просто зручний спосіб написати SQL, який ви вчили раніше. <code>__gte</code> — «≥», <code>__icontains</code> — <code>LIKE</code> з відсотками по краях, <code>|</code> — <code>OR</code>, мінус чи <code>desc()</code> — <code>DESC</code>. А сторінка 2 — «пропусти перші 9, візьми наступні 9».</p>", lines:[39,43,35,4,48] }
+];
+
+var cur = 0, work = {};
+function tstate(i){ return store.tasks[i] || null; }
+function correctSet(t){ return run(t.url).ids.slice().sort(function(a,b){ return a-b; }); }
+function orderAnswer(t){ var cmp = SORTS[new URLSearchParams(t.url).get("sort")]; return t.ids.map(function(id){ return BY_ID[id]; }).sort(cmp).map(function(i){ return i.id; }); }
+
+function renderMap(){
+  $("#taskmap").innerHTML = TASKS.map(function(t, i){
+    var s = tstate(i), cls = "tm" + (i === cur ? " cur" : "") + (s ? (s.first ? " ok" : " bad") : "");
+    return '<button class="' + cls + '" data-i="' + i + '" aria-label="Завдання ' + (i + 1) + (s ? (s.first ? ", вірно" : ", з помилкою") : "") + '">' + (i + 1) + '</button>';
+  }).join("");
+  var done = TASKS.filter(function(_, i){ return tstate(i); }).length;
+  $("#taskBadge").textContent = done + "/" + TASKS.length;
+}
+
+function miniHtml(i, extra){
+  var it = BY_ID[i];
+  return '<button type="button" class="mini' + (it.deal === "free" ? " free" : "") + '" data-id="' + i + '" aria-pressed="false"' + (extra || "") + '>' +
+    '<b>' + esc(it.name) + '</b><span class="ct">' + esc(CATNAME[it.cat]) + ', ' + esc(it.city) + '</span><span class="pr">' + money(it.price) + '</span></button>';
+}
+
+function renderTask(){
+  var t = TASKS[cur], st = tstate(cur), box = $("#taskBox");
+  work = { checked:false };
+  var h = '<article class="task"><div class="head"><span class="num">Завдання ' + (cur + 1) + ' з ' + TASKS.length + '</span><span class="topic">' + esc(t.topic) + '</span></div>' +
+    '<h2>' + esc(t.title) + '</h2>' + (t.sub ? '<p class="sub">' + esc(t.sub) + '</p>' : "") +
+    (t.url && t.type !== "build" && t.type !== "nums" && t.type !== "match" && !t.snippet ? '<div class="url">' + esc(urlOf(t.url)) + '</div>' : "") +
+    (t.snippet ? '<pre class="snippet">' + esc(t.snippet) + '</pre>' : "") + '<div id="area"></div>' +
+    '<div class="actions"><button class="btn primary" id="checkBtn" disabled>Перевірити</button>' +
+    (cur > 0 ? '<button class="btn ghost" id="prevBtn">Назад</button>' : "") +
+    '<button class="btn ghost" id="nextBtn">' + (cur < TASKS.length - 1 ? "Наступне" : "До підсумку") + '</button></div><div id="fb"></div></article>';
+  box.innerHTML = h;
+  var area = $("#area");
+
+  if (t.type === "pick"){
+    work.sel = {};
+    area.innerHTML = '<div class="pickboard">' + ACTIVE.map(function(i){ return miniHtml(i.id); }).join("") + '</div>' +
+      (t.allowNone ? '<div class="nothing"><button type="button" class="pchip" id="noneBtn" aria-pressed="false">Нічого не знайдеться</button></div>' : "");
+    $$(".mini", area).forEach(function(b){ b.addEventListener("click", function(){ if (work.checked) return; var id = +b.dataset.id; work.sel[id] = !work.sel[id]; b.setAttribute("aria-pressed", !!work.sel[id]); if (work.sel[id] && $("#noneBtn")){ work.none = false; $("#noneBtn").setAttribute("aria-pressed", "false"); } ready(); }); });
+    if (t.allowNone) $("#noneBtn").addEventListener("click", function(){ if (work.checked) return; work.none = !work.none; this.setAttribute("aria-pressed", work.none); if (work.none){ work.sel = {}; $$(".mini", area).forEach(function(b){ b.setAttribute("aria-pressed", "false"); }); } ready(); });
+  }
+  if (t.type === "order"){
+    work.ord = [];
+    area.innerHTML = '<div class="pickboard">' + shuffle(t.ids).map(function(id){ return miniHtml(id); }).join("") + '</div><div class="nothing"><button type="button" class="btn ghost" id="ordReset">Почати порядок знову</button></div>';
+    var paint = function(){ $$(".mini", area).forEach(function(b){ var k = work.ord.indexOf(+b.dataset.id); var o = $(".ord", b); if (o) o.remove(); if (k >= 0){ var s = document.createElement("span"); s.className = "ord"; s.textContent = k + 1; b.appendChild(s); } }); };
+    $$(".mini", area).forEach(function(b){ b.addEventListener("click", function(){ if (work.checked) return; var id = +b.dataset.id; if (work.ord.indexOf(id) < 0) work.ord.push(id); paint(); ready(); }); });
+    $("#ordReset").addEventListener("click", function(){ if (work.checked) return; work.ord = []; paint(); ready(); });
+  }
+  if (t.type === "choice"){
+    var letters = "АБВГД";
+    area.innerHTML = '<div class="opts">' + t.opts.map(function(o, i){ return '<button type="button" class="opt" data-i="' + i + '" aria-pressed="false"><span class="l">' + letters[i] + '</span><span>' + esc(o) + '</span></button>'; }).join("") + '</div>';
+    $$(".opt", area).forEach(function(b){ b.addEventListener("click", function(){ if (work.checked) return; work.ans = +b.dataset.i; $$(".opt", area).forEach(function(x){ x.setAttribute("aria-pressed", x === b); }); ready(); }); });
+  }
+  if (t.type === "line"){
+    area.innerHTML = '<div class="code" id="pickCode">' + codeHtml(CODE.slice(16), { pick:true }) + '</div>';
+    $$(".ln", area).forEach(function(l, k){ l.dataset.line = k + 17; $(".num", l).textContent = k + 17; });
+    $$(".ln.pick", area).forEach(function(l){ l.addEventListener("click", function(){ if (work.checked) return; work.ans = +l.dataset.line; $$(".ln", area).forEach(function(x){ x.classList.toggle("chosen", x === l); }); ready(); }); });
+  }
+  if (t.type === "build"){
+    work.sel = {};
+    area.innerHTML = '<div class="chipset">' + t.chips.map(function(c, i){ return '<button type="button" class="pchip" data-i="' + i + '" aria-pressed="false">' + esc(c[0] + "=" + c[1]) + '</button>'; }).join("") + '</div><div class="built" id="built"></div>';
+    var upd = function(){ var sp = new URLSearchParams(); t.chips.forEach(function(c, i){ if (work.sel[i]) sp.append(c[0], c[1]); }); work.search = sp.toString(); var r = run(work.search); $("#built").innerHTML = esc(urlOf(decodeQs(work.search))) + '<small>Ця адреса знайде: ' + (r.count ? r.all.map(function(i){ return esc(i.name); }).join(", ") : "нічого") + ' (' + r.count + ')</small>'; };
+    $$(".pchip", area).forEach(function(b){ b.addEventListener("click", function(){ if (work.checked) return; var i = +b.dataset.i; work.sel[i] = !work.sel[i]; b.setAttribute("aria-pressed", !!work.sel[i]); upd(); ready(); }); });
+    upd();
+  }
+  if (t.type === "nums"){
+    area.innerHTML = '<div class="nums">' + t.fields.map(function(f, i){ return '<label>' + esc(f[0]) + '<input type="number" inputmode="numeric" data-i="' + i + '" id="num' + i + '"></label>'; }).join("") + '</div>';
+    $$("input", area).forEach(function(inp){ inp.addEventListener("input", ready); });
+  }
+  if (t.type === "match"){
+    work.order = shuffle(t.pairs.map(function(p){ return p[1]; }));
+    area.innerHTML = '<div class="match">' + t.pairs.map(function(p, i){
+      return '<div class="orm">' + esc(p[0]) + '</div><select data-i="' + i + '" aria-label="SQL для ' + esc(p[0]) + '"><option value="">— обери SQL —</option>' + work.order.map(function(s){ return '<option>' + esc(s) + '</option>'; }).join("") + '</select>';
+    }).join("") + '</div>';
+    $$("select", area).forEach(function(s){ s.addEventListener("change", ready); });
+  }
+
+  function ready(){
+    var ok = false;
+    if (t.type === "pick") ok = work.none || Object.keys(work.sel).some(function(k){ return work.sel[k]; });
+    if (t.type === "order") ok = work.ord.length === t.ids.length;
+    if (t.type === "choice" || t.type === "line") ok = work.ans != null;
+    if (t.type === "build") ok = Object.keys(work.sel).some(function(k){ return work.sel[k]; });
+    if (t.type === "nums") ok = $$("#area input").every(function(i){ return i.value !== ""; });
+    if (t.type === "match") ok = $$("#area select").every(function(s){ return s.value; });
+    $("#checkBtn").disabled = !ok || work.checked;
+  }
+
+  $("#checkBtn").addEventListener("click", function(){ check(t); });
+  $("#nextBtn").addEventListener("click", function(){ if (cur < TASKS.length - 1){ cur++; renderMap(); renderTask(); scrollTo(0, $("#v-tasks").offsetTop - 10); } else show("summary"); });
+  if ($("#prevBtn")) $("#prevBtn").addEventListener("click", function(){ cur--; renderMap(); renderTask(); });
+}
+
+function check(t){
+  var area = $("#area"), right = false;
+  work.checked = true; $("#checkBtn").disabled = true;
+  if (t.type === "pick"){
+    var want = correctSet(t), wantSet = {}; want.forEach(function(id){ wantSet[id] = true; });
+    var got = Object.keys(work.sel).filter(function(k){ return work.sel[k]; }).map(Number);
+    right = want.length === 0 ? !!work.none && got.length === 0 : (got.length === want.length && got.every(function(id){ return wantSet[id]; }));
+    $$(".mini", area).forEach(function(b){ var id = +b.dataset.id; if (wantSet[id] && work.sel[id]) b.classList.add("r-ok"); else if (wantSet[id]) b.classList.add("r-miss"); else if (work.sel[id]) b.classList.add("r-bad"); });
+    if ($("#noneBtn")) $("#noneBtn").classList.add(want.length === 0 ? "r-ok" : (work.none ? "r-bad" : "x"));
+  }
+  if (t.type === "order"){
+    var ans = orderAnswer(t);
+    right = ans.every(function(id, k){ return work.ord[k] === id; });
+    $$(".mini", area).forEach(function(b){ var id = +b.dataset.id, k = work.ord.indexOf(id); b.classList.add(ans[k] === id ? "r-ok" : "r-bad"); });
+  }
+  if (t.type === "choice"){
+    right = work.ans === t.answer;
+    $$(".opt", area).forEach(function(b, i){ if (i === t.answer) b.classList.add("r-ok"); else if (i === work.ans) b.classList.add("r-bad"); });
+  }
+  if (t.type === "line"){
+    right = work.ans === t.answer;
+    $$(".ln", area).forEach(function(l){ var n = +l.dataset.line; if (n === t.answer) l.classList.add("right"); else if (n === work.ans) l.classList.add("wrong"); l.classList.remove("chosen"); });
+  }
+  if (t.type === "build"){
+    var keys = t.chips.map(function(c){ return c[0] + "=" + c[1]; });
+    right = keys.every(function(k, i){ return !!work.sel[i] === (t.correct.indexOf(k) >= 0); });
+    $$(".pchip", area).forEach(function(b, i){ var need = t.correct.indexOf(keys[i]) >= 0; if (need && work.sel[i]) b.classList.add("r-ok"); else if (need) b.classList.add("r-miss"); else if (work.sel[i]) b.classList.add("r-bad"); });
+  }
+  if (t.type === "nums"){
+    right = true;
+    t.fields.forEach(function(f, i){ var inp = $("#num" + i), ok = Number(inp.value) === f[1]; inp.classList.add(ok ? "r-ok" : "r-bad"); if (!ok){ right = false; inp.insertAdjacentHTML("afterend", '<span class="hand" style="font-size:22px">правильно: ' + f[1] + '</span>'); } });
+  }
+  if (t.type === "match"){
+    right = true;
+    $$("select", area).forEach(function(s, i){ var ok = s.value === t.pairs[i][1]; s.classList.add(ok ? "r-ok" : "r-bad"); if (!ok){ right = false; s.insertAdjacentHTML("afterend", '<span class="hand" style="font-size:20px; grid-column:2">→ ' + esc(t.pairs[i][1]) + '</span>'); } s.disabled = true; });
+  }
+  var prev = tstate(cur);
+  store.tasks[cur] = { first: prev ? prev.first : right, last: right }; save();
+  var fb = '<div class="feedback"><span class="stamp ' + (right ? "ok" : "bad") + '">' + (right ? "Вірно" : "Не зовсім") + '</span><div class="why">' + t.why;
+  if (t.lines) fb += '<div class="code" style="margin-top:8px">' + codeHtml(linesSlice(t.lines).lines).replace(/data-line="(\d+)"/g, function(_, n){ return 'data-line="' + n + '"'; }) + '</div>';
+  fb += '<div class="actions" style="margin-top:14px">' + (t.url ? '<button class="btn" id="toLab">Відкрити в лабораторії</button>' : "") + '<button class="btn ghost" id="retry">Спробувати ще раз</button></div></div></div>';
+  $("#fb").innerHTML = fb;
+  if (t.lines){ var sl = linesSlice(t.lines); $$("#fb .ln").forEach(function(l, k){ var n = sl.nums[k]; $(".num", l).textContent = n == null ? "⋯" : n; if (n != null && t.lines.indexOf(n) >= 0) l.classList.add("hl"); }); }
+  if ($("#toLab")) $("#toLab").addEventListener("click", function(){ openLab(t.url); show("lab"); markLines($("#labCode"), t.lines || []); });
+  $("#retry").addEventListener("click", renderTask);
+  renderMap();
+}
+function linesSlice(nums){
+  // показуємо лише потрібні рядки коду з «⋯» між шматками
+  var s = nums.slice().sort(function(a,b){ return a-b; }), lines = [], out = [], last = null;
+  s.forEach(function(n){ if (last !== null && n > last + 1){ lines.push("⋯"); out.push(null); } if (n !== last){ lines.push(CODE[n - 1]); out.push(n); } last = n; });
+  return { lines:lines, nums:out };
+}
+
+/* ===================== ЗБЕРИ САМ ===================== */
+var INF = 99;
+// [від етапу, до етапу, рядок]
+var VIEW_SRC = [
+  [5,INF,'from decimal import Decimal, InvalidOperation'],
+  [5,INF,''],
+  [7,INF,'from django.core.paginator import Paginator'],
+  [1,5,'from django.db.models import Q'],
+  [6,INF,'from django.db.models import F, Q'],
+  [0,INF,'from django.shortcuts import render'],
+  [0,INF,''],
+  [0,1,'from .models import Product'],
+  [2,INF,'from .models import Category, Product'],
+  [6,INF,''],
+  [6,INF,''],
+  [6,INF,'SORT_OPTIONS = {'],
+  [6,INF,'    "new": F("created_at").desc(),'],
+  [6,INF,'    "cheap": F("price").asc(nulls_first=True),'],
+  [6,INF,'    "expensive": F("price").desc(nulls_last=True),'],
+  [6,INF,'}'],
+  [5,INF,''],
+  [5,INF,''],
+  [5,INF,'def parse_price(value):'],
+  [5,INF,'    """Число з адреси або None, якщо там не число."""'],
+  [5,INF,'    try:'],
+  [5,INF,'        number = Decimal(value)'],
+  [5,INF,'    except (InvalidOperation, TypeError):'],
+  [5,INF,'        return None'],
+  [5,INF,'    return number if number.is_finite() else None'],
+  [0,INF,''],
+  [0,INF,''],
+  [0,INF,'def product_list(request):'],
+  [0,INF,'    products = Product.objects.filter(status=Product.Status.ACTIVE)'],
+  [1,INF,'    params = request.GET'],
+  [1,INF,''],
+  [1,INF,'    query = params.get("q", "").strip()'],
+  [1,INF,'    if query:'],
+  [1,INF,'        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))'],
+  [2,INF,''],
+  [2,INF,'    category_id = params.get("category", "")'],
+  [2,INF,'    if category_id.isdigit():'],
+  [2,INF,'        products = products.filter(category_id=category_id)'],
+  [3,INF,''],
+  [3,INF,'    deal = params.get("deal", "")'],
+  [3,INF,'    if deal in Product.DealType.values:'],
+  [3,INF,'        products = products.filter(deal_type=deal)'],
+  [4,INF,''],
+  [4,INF,'    city = params.get("city", "").strip()'],
+  [4,INF,'    if city:'],
+  [4,INF,'        products = products.filter(city__icontains=city)'],
+  [5,INF,''],
+  [5,INF,'    price_min = parse_price(params.get("price_min"))'],
+  [5,INF,'    if price_min is not None:'],
+  [5,INF,'        products = products.filter(price__gte=price_min)'],
+  [5,INF,''],
+  [5,INF,'    price_max = parse_price(params.get("price_max"))'],
+  [5,INF,'    if price_max is not None:'],
+  [5,INF,'        products = products.filter(Q(price__lte=price_max) | Q(price__isnull=True))'],
+  [6,INF,''],
+  [6,INF,'    sort = params.get("sort", "new")'],
+  [6,INF,'    products = products.order_by(SORT_OPTIONS.get(sort, SORT_OPTIONS["new"]))'],
+  [7,INF,''],
+  [7,INF,'    page = Paginator(products, 9).get_page(params.get("page"))'],
+  [8,INF,'    querystring = params.copy()'],
+  [8,INF,'    querystring.pop("page", None)'],
+  [0,INF,''],
+  [0,INF,'    context = {'],
+  [0,6,'        "products": products,'],
+  [7,INF,'        "page": page,'],
+  [1,INF,'        "filters": params,'],
+  [2,INF,'        "categories": Category.objects.all(),'],
+  [3,INF,'        "deal_types": Product.DealType.choices,'],
+  [6,INF,'        "sort": sort,'],
+  [8,INF,'        "querystring": querystring.urlencode(),'],
+  [0,INF,'    }'],
+  [0,INF,'    return render(request, "shop/product_list.html", context)']
+];
+var TPL_SRC = [
+  [0,INF,'{% extends "shop/base.html" %}'],
+  [0,INF,''],
+  [0,INF,'{% block content %}'],
+  [0,INF,'    <h1>Оголошення</h1>'],
+  [1,INF,''],
+  [1,INF,'    <form method="get" class="filters">'],
+  [1,INF,'        <input type="search" name="q" value="{{ filters.q }}" placeholder="Що шукаєте?">'],
+  [2,INF,'        <select name="category">'],
+  [2,INF,'            <option value="">Усі категорії</option>'],
+  [2,INF,'            {% for category in categories %}'],
+  [2,INF,'                <option value="{{ category.pk }}" {% if filters.category == category.pk|stringformat:"s" %}selected{% endif %}>{{ category.name }}</option>'],
+  [2,INF,'            {% endfor %}'],
+  [2,INF,'        </select>'],
+  [3,INF,'        <select name="deal">'],
+  [3,INF,'            <option value="">Продаж і безкоштовно</option>'],
+  [3,INF,'            {% for value, label in deal_types %}'],
+  [3,INF,'                <option value="{{ value }}" {% if filters.deal == value %}selected{% endif %}>{{ label }}</option>'],
+  [3,INF,'            {% endfor %}'],
+  [3,INF,'        </select>'],
+  [4,INF,'        <input type="text" name="city" value="{{ filters.city }}" placeholder="Місто">'],
+  [5,INF,'        <input type="number" name="price_min" value="{{ filters.price_min }}" placeholder="Ціна від" min="0">'],
+  [5,INF,'        <input type="number" name="price_max" value="{{ filters.price_max }}" placeholder="до" min="0">'],
+  [6,INF,'        <select name="sort">'],
+  [6,INF,'            <option value="new" {% if sort == "new" %}selected{% endif %}>Спочатку нові</option>'],
+  [6,INF,'            <option value="cheap" {% if sort == "cheap" %}selected{% endif %}>Спочатку дешевші</option>'],
+  [6,INF,'            <option value="expensive" {% if sort == "expensive" %}selected{% endif %}>Спочатку дорожчі</option>'],
+  [6,INF,'        </select>'],
+  [1,INF,'        <button type="submit">Показати</button>'],
+  [1,INF,'    </form>'],
+  [0,INF,''],
+  [0,INF,'    <div class="grid">'],
+  [0,6,'        {% for product in products %}'],
+  [7,INF,'        {% for product in page %}'],
+  [0,INF,'            {% include "shop/_card.html" %}'],
+  [0,INF,'        {% empty %}'],
+  [0,INF,'            <p>Нічого не знайдено.</p>'],
+  [0,INF,'        {% endfor %}'],
+  [0,INF,'    </div>'],
+  [7,INF,''],
+  [7,INF,'    {% if page.has_other_pages %}'],
+  [7,INF,'        <nav class="pagination">'],
+  [7,INF,'            {% if page.has_previous %}'],
+  [7,7,'                <a href="?page={{ page.previous_page_number }}">Назад</a>'],
+  [8,INF,'                <a href="?{{ querystring }}&page={{ page.previous_page_number }}">Назад</a>'],
+  [7,INF,'            {% endif %}'],
+  [7,INF,'            <span>Сторінка {{ page.number }} з {{ page.paginator.num_pages }}</span>'],
+  [7,INF,'            {% if page.has_next %}'],
+  [7,7,'                <a href="?page={{ page.next_page_number }}">Далі</a>'],
+  [8,INF,'                <a href="?{{ querystring }}&page={{ page.next_page_number }}">Далі</a>'],
+  [7,INF,'            {% endif %}'],
+  [7,INF,'        </nav>'],
+  [7,INF,'    {% endif %}'],
+  [0,INF,'{% endblock %}']
+];
+var EN_KEYS = [null, "q", "category", "deal", "city", "price", "sort", "page", "qs"];
+function enabledAt(s){ var en = {}; for (var k = 1; k <= s; k++) en[EN_KEYS[k]] = 1; return en; }
+
+/* схема «хто за що відповідає» для кожного етапу:
+   [форма в шаблоні, адреса, views.py, база (SQL), шаблон показує] */
+var STAGES = [
+  { title:"Основа", short:"звідки беруться параметри",
+    goal:"Каталог уже є з кроку 6: view бере всі активні оголошення й віддає шаблону. Перш ніж додавати фільтри, розберемося, як дані з форми потрапляють у Python.",
+    flow:["форми ще немає", "/products/", "Product.objects.filter(status=ACTIVE)", "WHERE status = 'active'", "{% for product in products %}"],
+    hot:[2,3,4], tries:[""],
+    ex:[
+      { type:"match", q:"Користувач відкрив /products/?q=лампа&city=Львів. Що поверне кожен рядок у view?",
+        pairs:[['request.GET.get("q")','"лампа"'],['request.GET.get("city")','"Львів"'],['request.GET.get("price")','None'],['request.GET.get("price", "")','"" (порожній рядок)']],
+        why:"<p><code>request.GET</code> — це словник з усього, що стоїть в адресі після <code>?</code>. Метод <code>get</code> працює так само, як у звичайного словника: якщо ключа немає, повертає <code>None</code> або значення за замовчуванням, яке ми передали другим.</p>" },
+      { type:"choice", q:"Хто дописує <code>?q=лампа</code> в адресу, коли користувач натискає «Показати»?",
+        opts:["Браузер: форма з method=\"get\" складає з полів адресу сама","Django після отримання запиту","Наш view через redirect","Потрібен окремий JavaScript"], answer:0,
+        why:"<p>Це робить звичайний HTML. Форма з <code>method=\"get\"</code> бере кожне поле, його <code>name</code> і значення, складає з них <code>?name=значення&amp;…</code> і відкриває таку адресу. Нам лишається прочитати ці параметри у view.</p>" },
+      { type:"choice", q:"Чому для пошуку <code>method=\"get\"</code>, а не <code>post</code>?",
+        opts:["GET нічого не змінює на сайті, а адресою з результатом можна поділитися чи додати в закладки","POST повільніший","GET безпечніший для паролів","Різниці немає"], answer:0,
+        why:"<p>Правило з уроків про форми: <b>GET — отримати дані, POST — змінити</b>. Пошук нічого не змінює. До того ж адреса <code>?city=Львів&amp;deal=free</code> — це готове посилання, яке можна надіслати другові, а кнопка «Назад» у браузері працює без попереджень.</p>" }
+    ] },
+  { title:"Пошук за словом", short:"q: форма, читання, Q",
+    goal:"Покупець пише «велосипед» і хоче бачити все, де це слово є в назві або в описі.",
+    flow:['<input name="q">', "?q=велосипед", 'params.get("q") → if query → filter(Q | Q)', "WHERE name LIKE '%велосипед%' OR description LIKE …", 'value="{{ filters.q }}"'],
+    hot:[0,1,2,3,4], tries:["q=велосипед","q=jbl","q="],
+    ex:[
+      { type:"order", q:"Склади код пошуку у view. Один рядок зайвий.",
+        lines:['    params = request.GET','    query = params.get("q", "").strip()','    if query:','        products = products.filter(Q(name__icontains=query) | Q(description__icontains=query))'],
+        extra:['    query = request.POST.get("q")'],
+        why:"<p>Спершу коротке ім'я <code>params</code> для <code>request.GET</code>. Потім читаємо <code>q</code> і <code>.strip()</code> прибирає випадкові пробіли. Фільтруємо лише якщо щось введено. <code>Q(...) | Q(...)</code> — «у назві <b>або</b> в описі».</p><p>Зайвий рядок — <code>request.POST</code>: форма пошуку надсилає GET, тож у POST нічого не буде.</p>" },
+      { type:"blank", q:"Допиши шаблон і context так, щоб поле пошуку працювало і після пошуку не ставало порожнім.",
+        code:'<input type="search" name="[[q]]" value="{{ [[filters]].q }}">\n\n# у views.py, context:\n"[[filters]]": params,',
+        why:"<p><code>name=\"q\"</code> — це ім'я, яке з'явиться в адресі й яке читає <code>params.get(\"q\")</code>. <code>value=\"{{ filters.q }}\"</code> підставляє введене слово назад у поле, а <code>filters</code> ми передаємо з view. Без цього після пошуку поле було б порожнім, і людина не бачила б, що шукала.</p>" },
+      { type:"choice", q:"У шаблоні написали <code>&lt;input name=\"search\"&gt;</code>, а у view — <code>params.get(\"q\")</code>. Що побачить користувач?",
+        opts:["Помилку 500","Сторінку з усіма оголошеннями: ніби шукав, а фільтр не спрацював","Порожній список","Помилку 404"], answer:1,
+        why:"<p>Найпідступніша помилка цього кроку. Адреса буде <code>?search=велосипед</code>, а view шукає <code>q</code>, отримує порожній рядок і фільтр пропускає. Помилки немає, просто «не працює». <b>Одне й те саме слово має збігатися у трьох місцях</b>: <code>name</code> у формі, ключ у <code>params.get</code>, і <code>filters.…</code> у <code>value</code>.</p>" }
+    ] },
+  { title:"Категорія", short:"select, isdigit, список у context",
+    goal:"Покупець обирає категорію зі списку. Список категорій має прийти з бази, а не бути вписаним у HTML руками.",
+    flow:['<select name="category"> з {% for category in categories %}', "?category=4", 'if category_id.isdigit() → filter(category_id=…)', "WHERE category_id = 4", '"categories": Category.objects.all()'],
+    hot:[0,1,2,3,4], tries:["category=4","category=abc","category=2"],
+    ex:[
+      { type:"blank", q:"Допиши фільтр за категорією.",
+        code:'    category_id = params.get("[[category]]", "")\n    if category_id.[[isdigit]]():\n        products = products.filter([[category_id]]=category_id)',
+        why:"<p>Ключ <code>\"category\"</code> — як <code>name</code> у формі. <code>isdigit()</code> пропускає лише цифри: <code>?category=abc</code> не дійде до бази й не спричинить помилку 500. <code>category_id</code> — поле, яке Django створює для <code>ForeignKey category</code>: номер категорії.</p>" },
+      { type:"order", q:"Склади <code>&lt;select&gt;</code> для шаблону. Один рядок зайвий.",
+        lines:['<select name="category">','    <option value="">Усі категорії</option>','    {% for category in categories %}','        <option value="{{ category.pk }}">{{ category.name }}</option>','    {% endfor %}','</select>'],
+        extra:['        <option value="{{ category.name }}">{{ category.name }}</option>'],
+        why:"<p>Перший варіант з порожнім <code>value</code> — «без фільтра». Далі цикл по <code>categories</code>, які прийшли з view. У <code>value</code> — <b>номер</b>, а показуємо людям назву. У повній версії ще додається <code>selected</code>, щоб вибір не скидався після пошуку.</p>" },
+      { type:"choice", q:"Звідки в шаблоні береться список <code>categories</code>?",
+        opts:["З view: \"categories\": Category.objects.all() у context","Django сам передає всі моделі в шаблон","З адреси ?category=…","Його треба написати в HTML руками"], answer:0,
+        why:"<p>Шаблон бачить лише те, що передав view у <code>context</code>. Тому кожен <code>&lt;select&gt;</code> з даними з бази — це два місця: запит у view і цикл у шаблоні. Додав нову категорію в адмінці — вона сама з'явилась у списку.</p>" },
+      { type:"choice", q:"Чому в <code>value</code> номер категорії, а не назва?",
+        opts:["Номер унікальний і проходить isdigit(), а назва може змінитися, мати пробіли чи апостроф","Назва не влазить у value","Так вимагає HTML","Різниці немає"], answer:0,
+        why:"<p>Номер (<code>pk</code>) ніколи не повторюється й не змінюється. Назву адміністратор може перейменувати, і старе посилання перестане працювати. А <code>?category=Дитячі речі</code> ще й не пройде <code>isdigit()</code>.</p>" }
+    ] },
+  { title:"Продаж чи безкоштовно", short:"values і choices",
+    goal:"Покупець хоче бачити лише безкоштовні речі. Варіанти беремо з моделі: <code>Product.DealType</code>.",
+    flow:['<select name="deal"> з {% for value, label in deal_types %}', "?deal=free", 'if deal in DealType.values → filter(deal_type=deal)', "WHERE deal_type = 'free'", '"deal_types": Product.DealType.choices'],
+    hot:[0,1,2,3,4], tries:["deal=free","deal=sale","deal=FREE"],
+    ex:[
+      { type:"match", q:"З'єднай вираз з тим, що він повертає.",
+        pairs:[['Product.DealType.values','["sale", "free"]'],['Product.DealType.choices','[("sale", "Продаю"), ("free", "Віддаю безкоштовно")]'],['Product.DealType.FREE','"free"'],['Product.DealType.FREE.label','"Віддаю безкоштовно"']],
+        why:"<p><code>values</code> — те, що зберігається в базі й іде в адресу. <code>choices</code> — пари «значення, підпис» для <code>&lt;option&gt;</code>: значення в <code>value</code>, підпис людям. Тому в шаблоні цикл <code>{% for value, label in deal_types %}</code> розкладає кожну пару на дві змінні.</p>" },
+      { type:"blank", q:"Допиши перевірку у view і варіанти для шаблону.",
+        code:'    deal = params.get("deal", "")\n    if deal in Product.DealType.[[values]]:\n        products = products.filter(deal_type=deal)\n\n# context:\n"deal_types": Product.DealType.[[choices]],',
+        why:"<p>Перевіряємо, що значення з адреси є серед дозволених, і лише тоді фільтруємо. А для шаблону передаємо <code>choices</code>, бо там потрібні і значення, і підписи.</p>" },
+      { type:"choice", q:"Що зміниться, якщо прибрати перевірку <code>if deal in …values</code> і завжди фільтрувати?",
+        opts:["Нічого","Без вибору (deal порожній) і з ?deal=FREE каталог стане порожнім","Сайт падатиме з помилкою","Безкоштовні перестануть показуватися"], answer:1,
+        why:"<p><code>filter(deal_type=\"\")</code> шукає оголошення з порожнім типом — таких немає. Тобто без вибору типу користувач побачив би «Нічого не знайдено». Перевірка робить невідоме чи порожнє значення нешкідливим: фільтр просто пропускається.</p>" }
+    ] },
+  { title:"Місто — сам", short:"той самий шаблон без підказок",
+    goal:"Тепер усі три місця заповнюєш сам. Це той самий шаблон, що й пошук за словом, лише інше поле.",
+    flow:['<input name="city">', "?city=Львів", 'params.get("city") → if city → filter(city__icontains=…)', "WHERE city LIKE '%Львів%'", 'value="{{ filters.city }}"'],
+    hot:[0,1,2,3,4], tries:["city=Львів","city=Льв","city=київ"],
+    ex:[
+      { type:"blank", q:"Заповни всі пропуски: шаблон і view.",
+        code:'<!-- шаблон -->\n<input type="text" name="[[city]]" value="{{ filters.[[city]] }}" placeholder="Місто">\n\n# views.py\n    city = params.get("[[city]]", "").[[strip]]()\n    if [[city]]:\n        products = products.filter(city__[[icontains]]=city)',
+        why:"<p>Слово <code>city</code> — у <code>name</code>, у <code>filters.city</code> і в <code>params.get</code>. <code>strip()</code> прибирає пробіли, <code>if city:</code> пропускає порожнє поле. <code>icontains</code> — «містить, без урахування регістру», тож «Льв» знайде Львів.</p>" },
+      { type:"choice", q:"Замість <code>city__icontains=city</code> написали <code>city=city</code>. Що зміниться?",
+        opts:["Нічого","«Льв» чи «львів» більше не знайдуть Львів: потрібен точний збіг","Буде помилка","Знайдеться більше"], answer:1,
+        why:"<p>Без <code>__icontains</code> Django шукає точну рівність: <code>WHERE city = 'Льв'</code>. Для міст це незручно: людина має ввести назву літера в літеру. Відкрий у прев'ю <code>?city=Льв</code>, щоб побачити різницю з повним кодом.</p>" }
+    ] },
+  { title:"Ціна від і до", short:"parse_price, None, NULL",
+    goal:"Покупець задає діапазон цін. Але в адресі може опинитися що завгодно, а в безкоштовних ціни немає зовсім.",
+    flow:['<input type="number" name="price_min">', "?price_min=100&price_max=500", 'parse_price(...) → if … is not None → filter(price__gte / price__lte)', "WHERE price >= 100 AND (price <= 500 OR price IS NULL)", 'value="{{ filters.price_min }}"'],
+    hot:[0,1,2,3,4], tries:["price_min=100&price_max=1000","price_max=500","price_min=дорого","price_min=0"],
+    ex:[
+      { type:"order", q:"Склади функцію <code>parse_price</code>. Один рядок зайвий.",
+        lines:['def parse_price(value):','    try:','        number = Decimal(value)','    except (InvalidOperation, TypeError):','        return None','    return number if number.is_finite() else None'],
+        extra:['        number = int(value)'],
+        why:"<p><code>try</code> — спробуй перетворити текст на число. Якщо там «дорого» чи порожньо, <code>Decimal</code> кидає <code>InvalidOperation</code>, якщо параметра немає зовсім — <code>TypeError</code>; в обох випадках повертаємо <code>None</code>. <code>is_finite()</code> відсіює «NaN» та «Infinity».</p><p><code>int</code> зайвий: ціна буває з копійками, а <code>DecimalField</code> — точне десяткове число.</p>" },
+      { type:"blank", q:"Допиши обидва фільтри.",
+        code:'    price_min = parse_price(params.get("price_min"))\n    if price_min [[is not None]]:\n        products = products.filter(price__[[gte]]=price_min)\n\n    price_max = parse_price(params.get("price_max"))\n    if price_max is not None:\n        products = products.filter(Q(price__lte=price_max) | Q(price__[[isnull]]=True))',
+        why:"<p><code>is not None</code>, а не просто <code>if price_min:</code>, бо число 0 Python вважає «хибним». <code>gte</code> — «≥», <code>lte</code> — «≤». А <code>Q(price__isnull=True)</code> додає безкоштовні до «ціни до»: вони теж дешевші за 500.</p>" },
+      { type:"choice", q:"Навіщо взагалі <code>parse_price</code>? Чому не <code>filter(price__gte=params.get(\"price_min\"))</code>?",
+        opts:["Щоб «дорого» чи порожнє значення в адресі не давали помилку 500","Щоб запит був швидшим","Щоб округлити ціну","Щоб показати безкоштовні"], answer:0,
+        why:"<p>Усе з адреси — текст, і людина може вписати що завгодно. <code>filter(price__gte=\"дорого\")</code> обвалить сторінку. <code>parse_price</code> перетворює текст на число або каже «числа немає», і тоді фільтр пропускається.</p>" },
+      { type:"choice", q:"Що потрібно додати вгорі <code>views.py</code> на цьому етапі?",
+        opts:["from decimal import Decimal, InvalidOperation","from django.db.models import Decimal","import price","Нічого, Decimal вбудований"], answer:0,
+        why:"<p><code>Decimal</code> і помилка <code>InvalidOperation</code> живуть у стандартному модулі Python <code>decimal</code>. Без імпорту буде <code>NameError</code>. Подивись у «Твій код»: імпорт з'явиться першим рядком.</p>" }
+    ] },
+  { title:"Сортування", short:"словник варіантів, F, nulls",
+    goal:"Покупець обирає порядок: нові, дешевші, дорожчі. Але передавати в базу те, що прийшло з адреси, не можна.",
+    flow:['<select name="sort"> new / cheap / expensive', "?sort=cheap", 'SORT_OPTIONS.get(sort, SORT_OPTIONS["new"])', "ORDER BY price ASC NULLS FIRST", '"sort": sort → selected'],
+    hot:[0,1,2,3,4], tries:["sort=cheap","sort=expensive","sort=hack"],
+    ex:[
+      { type:"blank", q:"Допиши словник варіантів і рядок сортування.",
+        code:'SORT_OPTIONS = {\n    "new": F("created_at").[[desc]](),\n    "cheap": F("price").asc(nulls_[[first]]=True),\n    "expensive": F("price").desc(nulls_[[last]]=True),\n}\n\n    sort = params.get("sort", "new")\n    products = products.order_by(SORT_OPTIONS.[[get]](sort, SORT_OPTIONS["new"]))',
+        why:"<p><code>desc</code> — за спаданням, тобто найновіші першими. <code>nulls_first</code> ставить безкоштовні (без ціни) першими серед дешевших, <code>nulls_last</code> — останніми серед дорожчих. <code>get</code> зі значенням за замовчуванням: невідомий <code>sort</code> стає «new».</p>" },
+      { type:"choice", q:"Чому не написати просто <code>products.order_by(params.get(\"sort\"))</code>?",
+        opts:["Тоді будь-хто впише ?sort=abc і отримає помилку 500, а ще зможе сортувати за будь-яким полем","Так повільніше","order_by не приймає текст","Це те саме"], answer:0,
+        why:"<p>Словник — це «білий список»: у базу йде лише один з трьох підготовлених варіантів. Що б не прийшло з адреси, гірше за «спочатку нові» не буде.</p>" },
+      { type:"choice", q:"Навіщо передавати в шаблон <code>\"sort\": sort</code>?",
+        opts:["Щоб у <select> після пошуку лишався вибраний варіант (selected)","Щоб шаблон сам відсортував оголошення","Щоб Django запам'ятав сортування в базі","Без цього сортування не спрацює"], answer:0,
+        why:"<p>Сортує view, а шаблон лише малює форму. Але без <code>sort</code> у шаблоні не можна поставити <code>selected</code>, і після кожного пошуку список скидався б на «Спочатку нові», хоча оголошення відсортовані інакше.</p>" }
+    ] },
+  { title:"Сторінки", short:"Paginator, get_page",
+    goal:"Коли оголошень сотні, показуємо по 9. Але подивись у прев'ю, що станеться з фільтрами на другій сторінці.",
+    flow:["форма без змін", "?page=2", "Paginator(products, 9).get_page(...)", "LIMIT 9 OFFSET 9", '{% for product in page %} і посилання «Далі»'],
+    hot:[1,2,3,4], tries:["","sort=cheap","page=999"],
+    ex:[
+      { type:"blank", q:"Допиши пагінацію у view і цикл у шаблоні.",
+        code:'    page = [[Paginator]](products, 9).[[get_page]](params.get("page"))\n\n# context: замість "products": products\n"page": page,\n\n<!-- шаблон -->\n{% for product in [[page]] %}',
+        why:"<p><code>Paginator</code> ділить список на сторінки по 9. <code>get_page</code> бере номер з адреси й «прощає» помилки: не число — перша сторінка, завеликий номер — остання. Об'єкт сторінки можна перебирати в циклі, як список, тому в шаблоні <code>for product in page</code>.</p>" },
+      { type:"choice", q:"У прев'ю відкрий <code>?sort=cheap</code> і натисни «Далі». Що сталося з сортуванням на другій сторінці?",
+        opts:["Збереглося","Зникло: друга сторінка відсортована як «Спочатку нові»","Сайт видав помилку","Друга сторінка порожня"], answer:1,
+        why:"<p>Посилання поки має вигляд <code>?page=2</code>: у ньому лише номер сторінки. Усе інше — <code>sort</code>, <code>q</code>, <code>city</code> — губиться. Це виправимо на останньому етапі.</p>" }
+    ] },
+  { title:"Фільтри на кожній сторінці", short:"querystring",
+    goal:"Посилання «Далі» має зберегти всі параметри пошуку і змінити лише номер сторінки.",
+    flow:["форма без змін", "?sort=cheap&page=2", "querystring = params.copy(); pop(\"page\")", "той самий запит, інший OFFSET", 'href="?{{ querystring }}&page=…"'],
+    hot:[2,4], tries:["sort=cheap","deal=sale&sort=expensive"],
+    ex:[
+      { type:"order", q:"Склади код у view. Один рядок зайвий.",
+        lines:['    querystring = params.copy()','    querystring.pop("page", None)'],
+        extra:['    querystring = params'],
+        why:"<p><code>request.GET</code> не можна змінювати: Django захищає його від випадкових змін. Тому робимо копію і з копії прибираємо старий <code>page</code>. Рядок без <code>.copy()</code> дав би помилку «This QueryDict instance is immutable».</p>" },
+      { type:"blank", q:"Допиши посилання «Далі» в шаблоні й рядок у context.",
+        code:'<a href="?{{ [[querystring]] }}&page={{ page.[[next_page_number]] }}">Далі</a>\n\n# context:\n"querystring": querystring.[[urlencode]](),',
+        why:"<p><code>urlencode()</code> перетворює параметри назад на рядок <code>sort=cheap&amp;q=…</code>. Шаблон дописує до нього новий номер сторінки. Перевір у прев'ю: <code>?sort=cheap</code> → «Далі» — сортування тепер зберігається.</p>" },
+      { type:"choice", q:"Навіщо <code>pop(\"page\")</code>? Чому не взяти всі параметри як є?",
+        opts:["Інакше в посиланні буде два page: ?page=1&page=2, і адреса з кожним кліком довшатиме","Інакше сайт впаде","Без цього не працюватиме сортування","Це не потрібно"], answer:0,
+        why:"<p>Старий номер сторінки треба замінити новим, а не додати поруч. Тому спершу прибираємо <code>page</code>, а шаблон додає свіжий.</p>" }
+    ] }
+];
+
+var bStage = 0;
+function bstate(){ store.build = store.build || { done:{}, ex:{} }; return store.build; }
+function builtUpTo(){ var b = bstate(), s = -1; for (var k = 0; k < STAGES.length; k++){ if (b.done[k]) s = k; else break; } return s; }
+
+function srcView(src, s){
+  var out = [];
+  src.forEach(function(l){
+    var vis = l[0] <= s && s <= l[1], del = l[1] === s - 1 && l[0] <= s - 1;
+    if (vis) out.push({ t:l[2], k:(l[0] === s && s > 0) ? "add" : "same" });
+    else if (del) out.push({ t:l[2], k:"del" });
+  });
+  return out;
+}
+function hlTpl(line){
+  return esc(line).replace(/(\{%.*?%\}|\{\{.*?\}\})/g, '<span class="t-num">$1</span>').replace(/(&lt;\/?[a-z]+)/g, '<span class="t-kw">$1</span>').replace(/(name|value)=(&quot;[^&]*?&quot;)/g, '$1=<span class="t-str">$2</span>');
+}
+function srcHtml(rows, tpl){
+  return rows.map(function(r, i){
+    return '<div class="ln ' + (r.k === "add" ? "hl" : r.k === "del" ? "gone" : "") + '"><span class="num">' + (r.k === "add" ? "+" : r.k === "del" ? "−" : "") + '</span><span class="src">' + ((tpl ? hlTpl(r.t) : hlPy(r.t)) || " ") + '</span></div>';
+  }).join("");
+}
+
+var codeTab = "view", pSearch = "";
+function renderBuildCode(){
+  var s = Math.max(0, builtUpTo());
+  $("#bCode").innerHTML = srcHtml(srcView(codeTab === "view" ? VIEW_SRC : TPL_SRC, s), codeTab === "tpl");
+  $$(".ctab").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab === codeTab); });
+  $("#bCodeNote").innerHTML = builtUpTo() < 0 ? "Поки тут код каталогу з кроку 6. Пройди етап «Основа»." : "Після етапу «" + STAGES[s].title + "». " + (s > 0 ? "Жовтим — що додалося, закресленим — що прибрали." : "");
+}
+function renderPreview(){
+  var s = Math.max(0, builtUpTo()), r = run(pSearch, enabledAt(s));
+  $("#pUrl").value = "/products/" + (pSearch ? "?" + decodeQs(pSearch) : "");
+  var ignored = r.stages.filter(function(st){ return st.ignored; });
+  $("#pInfo").innerHTML = '<b>' + r.count + '</b> знайдено' + (r.numPages > 1 ? ", сторінка " + r.page + " з " + r.numPages : "") +
+    (ignored.length ? '<span class="ign">Код ще не знає: ' + ignored.map(function(st){ return st.title.toLowerCase(); }).join(", ") + '</span>' : "");
+  $("#pList").innerHTML = r.pageItems.length ? r.pageItems.map(function(i){ return '<li class="' + (i.deal === "free" ? "free" : "") + '"><span>' + esc(i.name) + '</span><span class="mono">' + (i.price == null ? "даром" : i.price) + '</span><span class="c">' + esc(i.city) + '</span></li>'; }).join("") : '<li class="none">Нічого не знайдено</li>';
+  var qs = r.querystring, pg = "";
+  if (r.page > 1) pg += '<button class="btn" data-pgo="' + esc(qs + (qs ? "&" : "") + "page=" + (r.page - 1)) + '">Назад</button>';
+  if (r.page < r.numPages) pg += '<button class="btn" data-pgo="' + esc(qs + (qs ? "&" : "") + "page=" + (r.page + 1)) + '">Далі</button>';
+  if (pg) pg += '<span class="mono small">«' + (r.page < r.numPages ? "Далі" : "Назад") + '» веде на ?' + esc(decodeQs(qs + (qs ? "&" : "") + "page=" + (r.page < r.numPages ? r.page + 1 : r.page - 1))) + '</span>';
+  $("#pPager").innerHTML = pg;
+}
+function renderTries(){
+  var st = STAGES[bStage];
+  $("#pTries").innerHTML = '<span class="small">Спробуй:</span>' + st.tries.map(function(t){ return '<button class="pchip sm" data-try="' + esc(t) + '">' + esc("?" + (t || "")) + '</button>'; }).join("");
+}
+
+function renderStageMap(){
+  var b = bstate();
+  $("#stageMap").innerHTML = STAGES.map(function(st, k){
+    return '<button class="smap' + (k === bStage ? " cur" : "") + (b.done[k] ? " done" : "") + '" data-stage="' + k + '"><span class="k">' + k + '</span><span class="t">' + esc(st.title) + '</span></button>';
+  }).join("");
+}
+var FLOW_NAMES = ["Форма в шаблоні", "Адреса", "views.py", "База (SQL)", "Шаблон показує"];
+function renderStage(){
+  var st = STAGES[bStage], b = bstate();
+  var flow = '<div class="flow">' + st.flow.map(function(f, i){
+    return '<div class="fbox' + (st.hot.indexOf(i) >= 0 ? " hot" : "") + '"><span class="fn">' + FLOW_NAMES[i] + '</span><code>' + esc(f) + '</code></div>' + (i < 4 ? '<span class="arr" aria-hidden="true">→</span>' : "");
+  }).join("") + '</div>';
+  var html = '<div class="stagehead"><span class="snum">Етап ' + bStage + ' з ' + (STAGES.length - 1) + '</span><h2>' + esc(st.title) + '</h2><p class="goal">' + st.goal + '</p></div>' +
+    '<h3 class="lbl">Хто за що відповідає</h3>' + flow +
+    st.ex.map(function(e, i){ return '<div class="ex" id="ex' + i + '"></div>'; }).join("") +
+    '<div class="stagefoot" id="stageFoot"></div>';
+  $("#stageBox").innerHTML = html;
+  st.ex.forEach(function(e, i){ renderEx(i); });
+  renderStageFoot();
+  renderStageMap(); renderTries();
+}
+function exKey(i){ return bStage + "." + i; }
+function renderStageFoot(){
+  var st = STAGES[bStage], b = bstate();
+  var allDone = st.ex.every(function(e, i){ return b.ex[exKey(i)]; });
+  var foot = "";
+  if (b.done[bStage]) foot = '<p class="hand big">Етап у твоєму коді.</p>' + (bStage < STAGES.length - 1 ? '<button class="btn primary" id="nextStage">До етапу ' + (bStage + 1) + ': ' + esc(STAGES[bStage + 1].title) + '</button>' : '<div class="finale"><p class="hand big">Готово! Ти зібрав увесь крок 9: форму, view і шаблон.</p><p>Тепер перевір себе на завданнях-передбаченнях, а потім — на своєму справжньому сайті.</p><button class="btn primary" id="toCheck">До перевірки</button></div>');
+  else if (allDone) foot = '<button class="btn primary" id="addStage">Додати в мій код</button><span class="small">Рядки цього етапу з\'являться в «Твій код», а прев\'ю почне на них реагувати.</span>';
+  else foot = '<span class="small">Виконай усі завдання етапу, щоб додати його в код.</span>';
+  if (bStage > 0 && !b.done[bStage - 1]) foot = '<p class="warnline">Спершу пройди попередні етапи: код збирається по черзі.</p>' + foot;
+  $("#stageFoot").innerHTML = foot;
+  if ($("#addStage")) $("#addStage").addEventListener("click", function(){
+    if (bStage > 0 && !b.done[bStage - 1]) return;
+    b.done[bStage] = true; save(); renderBuildCode(); renderPreview(); renderStageFoot(); renderStageMap();
+    var k = (STAGES[bStage].tries.filter(function(t){ return t; })[0]) || ""; pSearch = new URLSearchParams(k).toString(); renderPreview();
+    $("#bCode").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  });
+  if ($("#nextStage")) $("#nextStage").addEventListener("click", function(){ bStage++; renderStage(); scrollTo(0, $("#v-build").offsetTop - 10); });
+  if ($("#toCheck")) $("#toCheck").addEventListener("click", function(){ show("tasks"); });
+}
+
+function renderEx(i){
+  var e = STAGES[bStage].ex[i], box = $("#ex" + i), saved = bstate().ex[exKey(i)];
+  var w = { checked:false };
+  var h = '<div class="exhead"><span class="exn">' + (i + 1) + '</span><span class="exq">' + e.q + '</span></div><div class="exarea"></div>' +
+    '<div class="actions"><button class="btn primary chk" disabled>Перевірити</button>' + (saved ? '<span class="small">' + (saved.first ? "Уже виконано з першої спроби." : "Уже виконано.") + '</span>' : "") + '</div><div class="exfb"></div>';
+  box.innerHTML = h;
+  var area = $(".exarea", box), chk = $(".chk", box);
+  function ready(ok){ chk.disabled = !ok || w.checked; }
+
+  if (e.type === "choice"){
+    area.innerHTML = '<div class="opts">' + e.opts.map(function(o, k){ return '<button type="button" class="opt" data-k="' + k + '" aria-pressed="false"><span class="l">' + "АБВГД"[k] + '</span><span>' + o.replace(/</g, "&lt;").replace(/&lt;(\/?)select/g, "&lt;$1select") + '</span></button>'; }).join("") + '</div>';
+    $$(".opt", area).forEach(function(b){ b.addEventListener("click", function(){ if (w.checked) return; w.ans = +b.dataset.k; $$(".opt", area).forEach(function(x){ x.setAttribute("aria-pressed", x === b); }); ready(true); }); });
+  }
+  if (e.type === "match"){
+    w.order = shuffle(e.pairs.map(function(p){ return p[1]; }));
+    area.innerHTML = '<div class="match">' + e.pairs.map(function(p, k){ return '<div class="orm">' + esc(p[0]) + '</div><select data-k="' + k + '" aria-label="Що повертає ' + esc(p[0]) + '"><option value="">— обери —</option>' + w.order.map(function(s){ return '<option>' + esc(s) + '</option>'; }).join("") + '</select>'; }).join("") + '</div>';
+    $$("select", area).forEach(function(s){ s.addEventListener("change", function(){ ready($$("select", area).every(function(x){ return x.value; })); }); });
+  }
+  if (e.type === "blank"){
+    w.ans = [];
+    var k = 0;
+    var code = esc(e.code).replace(/\[\[(.+?)\]\]/g, function(_, a){ var alts = a.split("|"); w.ans.push(alts); var len = Math.max.apply(null, alts.map(function(x){ return x.length; })); return '<input class="gap" data-k="' + (k++) + '" style="width:' + (len + 2) + 'ch" spellcheck="false" autocomplete="off" aria-label="Пропуск ' + k + '">'; });
+    area.innerHTML = '<pre class="blankcode">' + code + '</pre>';
+    var gaps = $$(".gap", area);
+    gaps.forEach(function(g){ g.addEventListener("input", function(){ ready(gaps.every(function(x){ return x.value.trim(); })); }); g.addEventListener("keydown", function(ev){ if (ev.key === "Enter" && !chk.disabled) chk.click(); }); });
+  }
+  if (e.type === "order"){
+    w.pool = shuffle(e.lines.concat(e.extra || []).map(function(t, k){ return { t:t, id:k }; }));
+    w.seq = [];
+    var draw = function(){
+      $(".ord-pool", area).innerHTML = w.pool.filter(function(x){ return w.seq.indexOf(x.id) < 0; }).map(function(x){ return '<button type="button" class="oline" data-id="' + x.id + '">' + hlAny(x.t) + '</button>'; }).join("") || '<span class="small">Усі рядки використано.</span>';
+      $(".ord-seq", area).innerHTML = w.seq.length ? w.seq.map(function(id, n){ var x = w.pool.filter(function(p){ return p.id === id; })[0]; return '<button type="button" class="oline in" data-id="' + id + '"><span class="on">' + (n + 1) + '</span>' + hlAny(x.t) + '</button>'; }).join("") : '<span class="small">Натискай рядки знизу в тому порядку, у якому вони стоять у коді. Натисни рядок тут, щоб повернути його назад.</span>';
+      ready(w.seq.length > 0);
+    };
+    area.innerHTML = '<div class="ord-seq"></div><div class="ord-pool"></div>';
+    area.addEventListener("click", function(ev){
+      var b = ev.target.closest(".oline"); if (!b || w.checked) return;
+      var id = +b.dataset.id;
+      if (b.classList.contains("in")) w.seq = w.seq.filter(function(x){ return x !== id; }); else w.seq.push(id);
+      draw();
+    });
+    draw();
+  }
+
+  chk.addEventListener("click", function(){
+    var right = false;
+    w.checked = true; chk.disabled = true;
+    if (e.type === "choice"){
+      right = w.ans === e.answer;
+      $$(".opt", area).forEach(function(b, k){ if (k === e.answer) b.classList.add("r-ok"); else if (k === w.ans) b.classList.add("r-bad"); });
+    }
+    if (e.type === "match"){
+      right = true;
+      $$("select", area).forEach(function(s, k){ var ok = s.value === e.pairs[k][1]; s.classList.add(ok ? "r-ok" : "r-bad"); s.disabled = true; if (!ok){ right = false; s.insertAdjacentHTML("afterend", '<span class="hand fix">→ ' + esc(e.pairs[k][1]) + '</span>'); } });
+    }
+    if (e.type === "blank"){
+      right = true;
+      $$(".gap", area).forEach(function(g, k){ var ok = w.ans[k].indexOf(g.value.trim()) >= 0; g.classList.add(ok ? "r-ok" : "r-bad"); g.readOnly = true; if (!ok){ right = false; g.insertAdjacentHTML("afterend", '<span class="gapfix">' + esc(w.ans[k][0]) + '</span>'); } });
+    }
+    if (e.type === "order"){
+      right = w.seq.length === e.lines.length && w.seq.every(function(id, n){ return id === n; });
+      var seqBox = $(".ord-seq", area);
+      $$(".oline.in", seqBox).forEach(function(b, n){ b.classList.add(+b.dataset.id === n ? "r-ok" : "r-bad"); });
+      if (!right) seqBox.insertAdjacentHTML("afterend", '<div class="solution"><span class="small">Правильний порядок:</span><pre class="blankcode">' + e.lines.map(function(t){ return hlAny(t); }).join("\n") + '</pre></div>');
+    }
+    var b = bstate(), key = exKey(i), prev = b.ex[key];
+    b.ex[key] = { first: prev ? prev.first : right, done:true }; save();
+    $(".exfb", box).innerHTML = '<div class="feedback"><span class="stamp ' + (right ? "ok" : "bad") + '">' + (right ? "Вірно" : "Не зовсім") + '</span><div class="why">' + e.why + '<div class="actions"><button class="btn ghost again">Спробувати ще раз</button></div></div></div>';
+    $(".again", box).addEventListener("click", function(){ renderEx(i); });
+    renderStageFoot(); renderStageMap();
+  });
+}
+function hlAny(t){ return /^\s*(<|\{%)/.test(t) ? hlTpl(t) : hlPy(t); }
+
+function initBuild(){
+  $("#stageMap").addEventListener("click", function(e){ var b = e.target.closest("[data-stage]"); if (b){ bStage = +b.dataset.stage; renderStage(); } });
+  $$(".ctab").forEach(function(b){ b.addEventListener("click", function(){ codeTab = b.dataset.tab; renderBuildCode(); }); });
+  $("#pForm").addEventListener("submit", function(e){ e.preventDefault(); var v = $("#pUrl").value.trim(), i = v.indexOf("?"); pSearch = i >= 0 ? new URLSearchParams(v.slice(i + 1)).toString() : ""; renderPreview(); });
+  $("#pTries").addEventListener("click", function(e){ var b = e.target.closest("[data-try]"); if (b){ pSearch = new URLSearchParams(b.dataset.try).toString(); renderPreview(); } });
+  $("#pPager").addEventListener("click", function(e){ var b = e.target.closest("[data-pgo]"); if (b){ pSearch = b.dataset.pgo; renderPreview(); } });
+  var b = bstate(); bStage = 0; for (var k = 0; k < STAGES.length; k++){ if (!b.done[k]){ bStage = k; break; } bStage = k; }
+  renderStage(); renderBuildCode(); renderPreview();
+}
+
+/* ===================== НА СВОЄМУ САЙТІ ===================== */
+var SITE = [
+  { url:"/products/?price_min=дорого", title:"Зламана ціна",
+    ask:"Сторінка відкрилася чи впала з помилкою? Скільки оголошень видно?",
+    answer:"Сторінка відкривається як звичайно, з усіма оголошеннями. <code>parse_price</code> повернула None, і фільтр за ціною пропущено. А в полі «Ціна від» порожньо: браузер не показує текст у полі для чисел." },
+  { url:"/products/?city=київ", url2:"/products/?city=Київ", title:"Регістр у SQLite",
+    ask:"Відкрий обидві адреси. Чи однакові результати?",
+    answer:"З малої літери не знайдеться нічого, з великої — оголошення з Києва. Це SQLite: вона не розрізняє регістр лише для латиниці. Спробуй ще <code>?q=jbl</code> або назву латиницею з малих літер — знайде." },
+  { url:"/products/?deal=free", title:"Фільтри на другій сторінці",
+    ask:"Відфільтруй безкоштовні, перейди «Далі» (якщо безкоштовних менше 10, спершу додай кілька в адмінці). Подивись на адресу: чи лишився в ній deal=free?",
+    answer:"Так: адреса другої сторінки — <code>?deal=free&amp;page=2</code>. Шаблон склав її з <code>querystring</code>, де вже не було старого page. І форма показує вибраний тип, бо в <code>&lt;option&gt;</code> стоїть <code>selected</code>." },
+  { url:"/products/?page=999", title:"Неіснуюча сторінка",
+    ask:"Що покаже сайт: помилку чи якусь сторінку? Яку саме?",
+    answer:"Останню сторінку каталогу. <code>get_page</code> замінює завеликий номер на останній, а не-число — на першу. Спробуй ще <code>?page=abc</code>." }
+];
+function renderSite(){
+  $("#siteCards").innerHTML = SITE.map(function(s, i){
+    var mark = store.site[i];
+    var urls = [s.url].concat(s.url2 ? [s.url2] : []);
+    return '<div class="card"><span class="step">Перевірка ' + (i + 1) + '</span><h3>' + esc(s.title) + '</h3>' +
+      urls.map(function(u, k){ return '<div class="copyurl"><code>http://127.0.0.1:8000' + esc(u) + '</code><button type="button" data-copy="http://127.0.0.1:8000' + esc(u) + '">Копіювати</button></div>'; }).join("") +
+      '<p style="margin:0">' + esc(s.ask) + '</p>' +
+      '<button type="button" class="btn" data-reveal="' + i + '">Показати, що мало бути</button>' +
+      '<div class="reveal" id="rev' + i + '" hidden>' + s.answer + '</div>' +
+      '<div class="selfmark"><span>У тебе так само?</span><button type="button" class="btn" data-mark="' + i + ':yes" aria-pressed="' + (mark === "yes") + '">Так</button><button type="button" class="btn" data-mark="' + i + ':no" aria-pressed="' + (mark === "no") + '">Інакше</button></div>' +
+      (mark === "no" ? '<p class="hand" style="font-size:21px; margin:0">Звір свій <code style="font-family:var(--f-mono); font-size:15px">product_list</code> з кодом у лабораторії: найчастіше бракує перевірки або <code style="font-family:var(--f-mono); font-size:15px">querystring</code>.</p>' : "") + '</div>';
+  }).join("");
+}
+function initSite(){
+  renderSite();
+  $("#siteCards").addEventListener("click", function(e){
+    var c = e.target.closest("[data-copy]"), r = e.target.closest("[data-reveal]"), m = e.target.closest("[data-mark]");
+    if (c){ copy(c.dataset.copy, c); }
+    if (r){ $("#rev" + r.dataset.reveal).hidden = false; r.remove(); }
+    if (m){ var p = m.dataset.mark.split(":"); store.site[p[0]] = p[1]; save(); var opened = $$(".reveal").map(function(x){ return !x.hidden; }); renderSite(); opened.forEach(function(o, i){ if (o){ $("#rev" + i).hidden = false; var b = $('[data-reveal="' + i + '"]'); if (b) b.remove(); } }); }
+  });
+}
+function copy(text, btn){
+  var done = function(){ var o = btn.textContent; btn.textContent = "Скопійовано"; setTimeout(function(){ btn.textContent = o; }, 1300); };
+  try { navigator.clipboard.writeText(text).then(done, fallback); } catch(e){ fallback(); }
+  function fallback(){ var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch(e){} document.body.removeChild(ta); }
+}
+
+/* ===================== НАПИШИ САМ ===================== */
+var HINTS = [
+  { t:"Які три місця треба змінити?", b:"<p>Згадай схему «Хто за що відповідає». Щось має з'явитися у <b>формі</b> шаблону, щось — у <b>views.py</b>, де ми читаємо параметр і фільтруємо, і ще щось у <b>context</b>, щоб шаблон мав із чого намалювати варіанти. Запиши собі ці три пункти, перш ніж писати код.</p>" },
+  { t:"Як назвати параметр?", b:"<p>Обери одне слово і використай його всюди: у <code>name</code> поля форми, у <code>params.get(\"…\")</code> і в <code>filters.…</code>. Поле в моделі називається <code>condition</code> — найпростіше взяти саме його. Пригадай етап «Пошук за словом»: що стається, якщо слова не збігаються?</p>" },
+  { t:"Які значення дозволені?", b:"<p>Подивись у <code>models.py</code> на клас <code>Product.Condition</code>. Він влаштований так само, як <code>Product.DealType</code>. Який фільтр ти вже робив з таким класом? Як там перевірялося, що значення з адреси дозволене, і що ти передавав у шаблон для <code>&lt;option&gt;</code>?</p>" },
+  { t:"Чому вибір скидається після пошуку?", b:"<p>Якщо після натискання «Показати» в списку знову стоїть «Будь-який стан», чогось бракує в <code>&lt;option&gt;</code>. Що ти додавав до варіантів категорії й типу угоди, щоб вибраний пункт лишався вибраним? Звідки шаблон знає, що саме вибрали?</p>" }
+];
+var SOLUTION = '<p>Звір зі своїм розв\'язком:</p><pre># views.py, після фільтра за типом угоди\ncondition = params.get("condition", "")\nif condition in Product.Condition.values:\n    products = products.filter(condition=condition)\n\n# context\n"conditions": Product.Condition.choices,</pre><pre>&lt;!-- product_list.html, у формі --&gt;\n&lt;select name="condition"&gt;\n    &lt;option value=""&gt;Будь-який стан&lt;/option&gt;\n    {% for value, label in conditions %}\n        &lt;option value="{{ value }}" {% if filters.condition == value %}selected{% endif %}&gt;{{ label }}&lt;/option&gt;\n    {% endfor %}\n&lt;/select&gt;</pre>';
+var CHECKS = [
+  "<code>?condition=new</code> показує лише нові речі",
+  "<code>?condition=NEW</code> і <code>?condition=abc</code> не ламають сторінку, а показують усе",
+  "Після «Показати» у списку лишається вибраний стан",
+  "На другій сторінці фільтр за станом зберігається",
+  "Стан працює разом з іншими фільтрами, наприклад з містом і ціною"
+];
+function renderHints(){
+  var n = store.hints, h = HINTS.slice(0, n).map(function(x, i){ return '<div class="hint"><span class="hn">Підказка ' + (i + 1) + '. ' + x.t + '</span>' + x.b + '</div>'; }).join("");
+  h += n < HINTS.length ? '<div><button class="btn" id="moreHint">' + (n ? "Ще підказка" : "Показати першу підказку") + ' (' + (n + 1) + ' з ' + HINTS.length + ')</button></div>' : "";
+  h += '<div class="hint"><span class="hn">Перевір на своєму сайті</span><ul class="checklist">' + CHECKS.map(function(c, i){ return '<li><label><input type="checkbox" data-ck="' + i + '"' + (store.checks[i] ? " checked" : "") + '><span>' + c + '</span></label></li>'; }).join("") + '</ul></div>';
+  h += '<div class="hint"><span class="hn">Розв\'язок</span>' + (store.solution ? SOLUTION : '<p>Відкривай лише після власної спроби: інакше це вже не «напиши сам».</p><button class="btn" id="showSol">Я спробував, показати розв\'язок</button>') + '</div>';
+  $("#hints").innerHTML = h;
+  if ($("#moreHint")) $("#moreHint").addEventListener("click", function(){ store.hints++; save(); renderHints(); });
+  if ($("#showSol")) $("#showSol").addEventListener("click", function(){ store.solution = true; save(); renderHints(); });
+  $$("#hints [data-ck]").forEach(function(cb){ cb.addEventListener("change", function(){ store.checks[cb.dataset.ck] = cb.checked; save(); }); });
+}
+
+/* ===================== ПІДСУМОК ===================== */
+function renderSummary(){
+  var done = 0, right = 0, topics = {}, order = [];
+  TASKS.forEach(function(t, i){ var s = tstate(i); if (!topics[t.topic]){ topics[t.topic] = { ok:0, all:0, bad:[] }; order.push(t.topic); } topics[t.topic].all++; if (s){ done++; if (s.first){ right++; topics[t.topic].ok++; } else topics[t.topic].bad.push(i); } });
+  var siteYes = Object.keys(store.site).filter(function(k){ return store.site[k] === "yes"; }).length;
+  var checks = Object.keys(store.checks).filter(function(k){ return store.checks[k]; }).length;
+  var h = '<div class="score"><span class="big">' + right + '<small>/' + TASKS.length + '</small></span><span style="max-width:520px">з першої спроби. ' + (done < TASKS.length ? "Пройдено " + done + " із " + TASKS.length + " завдань." : (right === TASKS.length ? '<span class="hand" style="font-size:28px">Чисто! Можна братися за наступний крок.</span>' : "Усі завдання пройдено. Нижче видно, що варто повторити.")) + '</span></div>';
+  h += '<div class="bars">' + order.map(function(k){ var t = topics[k], p = t.all ? Math.round(t.ok / t.all * 100) : 0;
+    return '<div><div class="bar"><span>' + esc(k) + '</span><span class="track"><span class="fill" style="width:' + p + '%"></span></span><span class="v">' + t.ok + '/' + t.all + '</span></div>' +
+      (t.bad.length ? '<div class="redo">' + t.bad.map(function(i){ return '<button class="btn ghost" data-redo="' + i + '">Повторити завдання ' + (i + 1) + '</button>'; }).join("") + '</div>' : "") + '</div>'; }).join("") + '</div>';
+  var bb = bstate(), stageDone = STAGES.filter(function(_, k){ return bb.done[k]; }).length, exAll = 0, exFirst = 0;
+  STAGES.forEach(function(st, k){ st.ex.forEach(function(_, i){ exAll++; var x = bb.ex[k + "." + i]; if (x && x.first) exFirst++; }); });
+  h = '<h2 class="sumh">Збери сам</h2><p>Етапів у коді: <b>' + stageDone + ' з ' + STAGES.length + '</b>. Завдань на збирання з першої спроби: <b>' + exFirst + ' з ' + exAll + '</b>.</p><div class="bars">' + STAGES.map(function(st, k){
+    var tot = st.ex.length, ok = st.ex.filter(function(_, i){ var x = bb.ex[k + "." + i]; return x && x.first; }).length;
+    return '<div class="bar"><span>' + k + '. ' + esc(st.title) + '</span><span class="track"><span class="fill" style="width:' + Math.round(ok / tot * 100) + '%"></span></span><span class="v">' + ok + '/' + tot + '</span></div>'; }).join("") + '</div><h2 class="sumh">Перевірка</h2>' + h;
+  h += '<p style="margin-top:26px">На своєму сайті: <b>' + siteYes + ' з ' + SITE.length + '</b> перевірок збіглися. «Напиши сам»: <b>' + checks + ' з ' + CHECKS.length + '</b> пунктів відмічено, підказок відкрито: ' + store.hints + '.</p>';
+  h += '<div class="actions"><button class="btn" id="resetAll">Почати все спочатку</button><span id="resetMsg" class="muted"></span></div>';
+  $("#summaryBox").innerHTML = h;
+  $$("[data-redo]").forEach(function(b){ b.addEventListener("click", function(){ cur = +b.dataset.redo; show("tasks"); }); });
+  var armed = false;
+  $("#resetAll").addEventListener("click", function(){
+    if (!armed){ armed = true; this.textContent = "Так, стерти мій прогрес"; $("#resetMsg").textContent = "Натисни ще раз, щоб підтвердити."; return; }
+    store = { tasks:{}, site:{}, hints:0, checks:{} }; save(); cur = 0; renderSite(); renderHints(); initBuild(); show("build");
+  });
+}
+
+/* ===================== НАВІГАЦІЯ ===================== */
+function show(name){
+  $$(".tab").forEach(function(t){ t.setAttribute("aria-selected", t.dataset.view === name); });
+  $$(".view").forEach(function(v){ v.classList.toggle("on", v.id === "v-" + name); });
+  if (name === "tasks"){ renderMap(); renderTask(); }
+  if (name === "summary") renderSummary();
+  try { history.replaceState(null, "", "#" + name); } catch(e){}
+  window.scrollTo(0, 0);
+}
+$$(".tab").forEach(function(t){ t.addEventListener("click", function(){ show(t.dataset.view); }); });
+window.addEventListener("hashchange", function(){ var h = location.hash.slice(1); if (["build","lab","tasks","site","write","summary"].indexOf(h) >= 0) show(h); });
+$("#taskmap").addEventListener("click", function(e){ var b = e.target.closest("[data-i]"); if (b){ cur = +b.dataset.i; renderMap(); renderTask(); } });
+
+initLab(); initBuild(); initSite(); renderHints(); renderMap();
+var startView = (location.hash || "").slice(1);
+show(["build","lab","tasks","site","write","summary"].indexOf(startView) >= 0 ? startView : "build");
+window.__engine = { run:run, TASKS:TASKS, correctSet:correctSet, orderAnswer:orderAnswer, STAGES:STAGES, srcView:srcView, VIEW_SRC:VIEW_SRC, TPL_SRC:TPL_SRC, enabledAt:enabledAt };
+})();
+</script>
+</body>
+</html>
