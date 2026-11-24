@@ -335,7 +335,7 @@ p code,li code,td code{background:var(--pen-soft); padding:.06em .35em; border-r
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <span class="kicker">тренажер до кроку 9</span>
+      <span class="kicker">тренажер: пошук, фільтри, сортування</span>
       <h1>Пошук на <span>дошці оголошень</span></h1>
     </div>
   </header>
@@ -439,7 +439,7 @@ p code,li code,td code{background:var(--pen-soft); padding:.06em .35em; border-r
     <div id="summaryBox"></div>
   </section>
 
-  <p class="foot">Код у тренажері — з кроку 9 посібника «Django від нуля до деплою». Прогрес зберігається лише в цьому браузері.</p>
+  <p class="foot">Прогрес зберігається лише в цьому браузері.</p>
 </div>
 
 <script>
@@ -1105,7 +1105,7 @@ function enabledAt(s){ var en = {}; for (var k = 1; k <= s; k++) en[EN_KEYS[k]] 
    [форма в шаблоні, адреса, views.py, база (SQL), шаблон показує] */
 var STAGES = [
   { title:"Основа", short:"звідки беруться параметри",
-    goal:"Каталог уже є з кроку 6: view бере всі активні оголошення й віддає шаблону. Перш ніж додавати фільтри, розберемося, як дані з форми потрапляють у Python.",
+    goal:"Каталог у тебе вже є: view бере всі активні оголошення й віддає шаблону. Перш ніж додавати фільтри, розберемося, як дані з форми потрапляють у Python.",
     flow:["форми ще немає", "/products/", "Product.objects.filter(status=ACTIVE)", "WHERE status = 'active'", "{% for product in products %}"],
     hot:[2,3,4], tries:[""],
     ex:[
@@ -1133,7 +1133,7 @@ var STAGES = [
         why:"<p><code>name=\"q\"</code> — це ім'я, яке з'явиться в адресі й яке читає <code>params.get(\"q\")</code>. <code>value=\"{{ filters.q }}\"</code> підставляє введене слово назад у поле, а <code>filters</code> ми передаємо з view. Без цього після пошуку поле було б порожнім, і людина не бачила б, що шукала.</p>" },
       { type:"choice", q:"У шаблоні написали <code>&lt;input name=\"search\"&gt;</code>, а у view — <code>params.get(\"q\")</code>. Що побачить користувач?",
         opts:["Помилку 500","Сторінку з усіма оголошеннями: ніби шукав, а фільтр не спрацював","Порожній список","Помилку 404"], answer:1,
-        why:"<p>Найпідступніша помилка цього кроку. Адреса буде <code>?search=велосипед</code>, а view шукає <code>q</code>, отримує порожній рядок і фільтр пропускає. Помилки немає, просто «не працює». <b>Одне й те саме слово має збігатися у трьох місцях</b>: <code>name</code> у формі, ключ у <code>params.get</code>, і <code>filters.…</code> у <code>value</code>.</p>" }
+        why:"<p>Найпідступніша помилка в цій темі. Адреса буде <code>?search=велосипед</code>, а view шукає <code>q</code>, отримує порожній рядок і фільтр пропускає. Помилки немає, просто «не працює». <b>Одне й те саме слово має збігатися у трьох місцях</b>: <code>name</code> у формі, ключ у <code>params.get</code>, і <code>filters.…</code> у <code>value</code>.</p>" }
     ] },
   { title:"Категорія", short:"select, isdigit, список у context",
     goal:"Покупець обирає категорію зі списку. Список категорій має прийти з бази, а не бути вписаним у HTML руками.",
@@ -1272,7 +1272,7 @@ function renderBuildCode(){
   var s = Math.max(0, builtUpTo());
   $("#bCode").innerHTML = srcHtml(srcView(codeTab === "view" ? VIEW_SRC : TPL_SRC, s), codeTab === "tpl");
   $$(".ctab").forEach(function(b){ b.setAttribute("aria-selected", b.dataset.tab === codeTab); });
-  $("#bCodeNote").innerHTML = builtUpTo() < 0 ? "Поки тут код каталогу з кроку 6. Пройди етап «Основа»." : "Після етапу «" + STAGES[s].title + "». " + (s > 0 ? "Жовтим — що додалося, закресленим — що прибрали." : "");
+  $("#bCodeNote").innerHTML = builtUpTo() < 0 ? "Поки тут код твого каталогу, яким він є зараз. Пройди етап «Основа»." : "Після етапу «" + STAGES[s].title + "». " + (s > 0 ? "Жовтим — що додалося, закресленим — що прибрали." : "");
 }
 function renderPreview(){
   var s = Math.max(0, builtUpTo()), r = run(pSearch, enabledAt(s));
@@ -1318,7 +1318,7 @@ function renderStageFoot(){
   var st = STAGES[bStage], b = bstate();
   var allDone = st.ex.every(function(e, i){ return b.ex[exKey(i)]; });
   var foot = "";
-  if (b.done[bStage]) foot = '<p class="hand big">Етап у твоєму коді.</p>' + (bStage < STAGES.length - 1 ? '<button class="btn primary" id="nextStage">До етапу ' + (bStage + 1) + ': ' + esc(STAGES[bStage + 1].title) + '</button>' : '<div class="finale"><p class="hand big">Готово! Ти зібрав увесь крок 9: форму, view і шаблон.</p><p>Тепер перевір себе на завданнях-передбаченнях, а потім — на своєму справжньому сайті.</p><button class="btn primary" id="toCheck">До перевірки</button></div>');
+  if (b.done[bStage]) foot = '<p class="hand big">Етап у твоєму коді.</p>' + (bStage < STAGES.length - 1 ? '<button class="btn primary" id="nextStage">До етапу ' + (bStage + 1) + ': ' + esc(STAGES[bStage + 1].title) + '</button>' : '<div class="finale"><p class="hand big">Готово! Ти зібрав пошук, фільтри, сортування і сторінки: форму, view і шаблон.</p><p>Тепер перевір себе на завданнях-передбаченнях, а потім — на своєму справжньому сайті.</p><button class="btn primary" id="toCheck">До перевірки</button></div>');
   else if (allDone) foot = '<button class="btn primary" id="addStage">Додати в мій код</button><span class="small">Рядки цього етапу з\'являться в «Твій код», а прев\'ю почне на них реагувати.</span>';
   else foot = '<span class="small">Виконай усі завдання етапу, щоб додати його в код.</span>';
   if (bStage > 0 && !b.done[bStage - 1]) foot = '<p class="warnline">Спершу пройди попередні етапи: код збирається по черзі.</p>' + foot;
@@ -1492,7 +1492,7 @@ function renderSummary(){
   TASKS.forEach(function(t, i){ var s = tstate(i); if (!topics[t.topic]){ topics[t.topic] = { ok:0, all:0, bad:[] }; order.push(t.topic); } topics[t.topic].all++; if (s){ done++; if (s.first){ right++; topics[t.topic].ok++; } else topics[t.topic].bad.push(i); } });
   var siteYes = Object.keys(store.site).filter(function(k){ return store.site[k] === "yes"; }).length;
   var checks = Object.keys(store.checks).filter(function(k){ return store.checks[k]; }).length;
-  var h = '<div class="score"><span class="big">' + right + '<small>/' + TASKS.length + '</small></span><span style="max-width:520px">з першої спроби. ' + (done < TASKS.length ? "Пройдено " + done + " із " + TASKS.length + " завдань." : (right === TASKS.length ? '<span class="hand" style="font-size:28px">Чисто! Можна братися за наступний крок.</span>' : "Усі завдання пройдено. Нижче видно, що варто повторити.")) + '</span></div>';
+  var h = '<div class="score"><span class="big">' + right + '<small>/' + TASKS.length + '</small></span><span style="max-width:520px">з першої спроби. ' + (done < TASKS.length ? "Пройдено " + done + " із " + TASKS.length + " завдань." : (right === TASKS.length ? '<span class="hand" style="font-size:28px">Чисто! Можна рухатися далі.</span>' : "Усі завдання пройдено. Нижче видно, що варто повторити.")) + '</span></div>';
   h += '<div class="bars">' + order.map(function(k){ var t = topics[k], p = t.all ? Math.round(t.ok / t.all * 100) : 0;
     return '<div><div class="bar"><span>' + esc(k) + '</span><span class="track"><span class="fill" style="width:' + p + '%"></span></span><span class="v">' + t.ok + '/' + t.all + '</span></div>' +
       (t.bad.length ? '<div class="redo">' + t.bad.map(function(i){ return '<button class="btn ghost" data-redo="' + i + '">Повторити завдання ' + (i + 1) + '</button>'; }).join("") + '</div>' : "") + '</div>'; }).join("") + '</div>';
